@@ -1,0 +1,15 @@
+# ESPHome / local secrets
+secrets.yaml
+*.secret.yaml
+.esphome/
+.storage/
+
+# Python / OS
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
