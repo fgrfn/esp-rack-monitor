@@ -1,0 +1,38 @@
+type: vertical-stack
+cards:
+  - type: entities
+    title: ESP Rack Monitor
+    show_header_toggle: false
+    entities:
+      - entity: binary_sensor.esp_rack_monitor_kritischer_alarm
+        name: Kritischer Alarm
+      - entity: text_sensor.esp_rack_monitor_alarmgrunde
+        name: Alarmgründe
+      - entity: binary_sensor.esp_rack_monitor_warnung
+        name: Warnung
+      - entity: text_sensor.esp_rack_monitor_warnungsgrunde
+        name: Warnungsgründe
+      - entity: select.esp_rack_monitor_seite
+        name: Seite
+      - entity: switch.esp_rack_monitor_auto_rotation
+        name: Auto-Rotation
+      - entity: light.esp_rack_monitor_hintergrundbeleuchtung
+        name: Display
+      - entity: sensor.esp_rack_monitor_kosten_pro_stunde
+        name: Kosten pro Stunde
+      - entity: sensor.esp_rack_monitor_cost_today
+        name: Tatsächliche Kosten heute
+  - type: horizontal-stack
+    cards:
+      - type: button
+        entity: button.esp_rack_monitor_alarm_quittieren
+        name: Alarm quittieren
+        icon: mdi:check-decagram-outline
+        tap_action:
+          action: toggle
+      - type: button
+        entity: button.esp_rack_monitor_alarm_testen
+        name: Alarm testen
+        icon: mdi:alarm-light-outline
+        tap_action:
+          action: toggle

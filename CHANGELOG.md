@@ -2,6 +2,40 @@
 
 All notable changes to this project are documented here.
 
+## 0.3.0 - 2026-07-14
+
+### Added
+
+- Independent bitmask-based alarm causes with per-cause trigger and clear timers.
+- Configurable startup grace, trigger delay, clear delay and metric hysteresis.
+- Separate immediate warning state, count and reason entities.
+- Persistent Home Assistant number controls for thresholds, timing, brightness and rotation.
+- Enable switches for four generic host slots and five alarm groups.
+- Automatic hiding of unavailable host cards and optional empty-page skipping.
+- Configurable default page, last-page restoration and post-interaction rotation pause.
+- Hardware test page and one-minute alarm-test button.
+- Optional sun-based night dimming using `sun.sun`.
+- Actual daily cost input plus an expanded optional Home Assistant package.
+- Persistent HA alarm notifications, acknowledgement/test scripts and a Lovelace card.
+- Update-ref, project-version and configuration-mismatch diagnostics.
+
+### Changed
+
+- Existing Unraid/Proxmox/NAS entity substitutions are retained internally but presented as generic host slots.
+- Alarm acknowledgement now covers only currently active causes; a new cause reopens the alarm page.
+- B2 short press no longer changes rotation while an alarm is active.
+- Automatic display refresh defaults to five seconds while alarms and buttons still update immediately.
+- Auto-rotation skips the hardware-test page and can skip pages without usable data.
+- Cost page prefers actual integrated daily cost when the HA package is installed.
+- Header badges show HA/data state and alarm/warning counts on every page.
+
+### Fixed
+
+- Added hysteresis and persistence delays to prevent alarms from flapping around a threshold.
+- Multiple simultaneous causes are no longer hidden behind a single first-reason string.
+- Manual page changes no longer get immediately overwritten by auto-rotation.
+- Graph Y-grid spacing is now defined directly in the remote display package.
+
 ## 0.2.3 - 2026-07-14
 
 ### Changed
