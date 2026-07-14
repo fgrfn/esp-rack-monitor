@@ -7,7 +7,8 @@ on:
     paths:
       - "esp-rack-monitor.yaml"
       - "packages/**"
-      - "includes/**"
+      - "src/**"
+      - "library.json"
       - "secrets.example.yaml"
       - ".github/scripts/**"
       - ".github/workflows/esphome.yml"
@@ -35,6 +36,10 @@ jobs:
       - name: Create ephemeral CI secrets
         shell: bash
         run: bash .github/scripts/create-ci-secrets.sh
+
+      - name: Point remote packages to tested ref
+        shell: bash
+        run: bash .github/scripts/prepare-remote-ref.sh "${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
 
       - name: Compile firmware
         id: esphome-build
