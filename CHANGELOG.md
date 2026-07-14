@@ -2,6 +2,20 @@
 
 All notable changes to this project are documented here.
 
+## 0.2.2 - 2026-07-14
+
+### Changed
+
+- Rack air temperature defaults now use 35 °C for warning and 40 °C for critical.
+- Rack temperature graph range now extends to 45 °C.
+- Remote package and helper sources now share the same configurable Git reference.
+
+### Fixed
+
+- B2 long press now triggers after 800 ms while the button remains held, without a three-second upper limit.
+- Holding B2 longer than three seconds no longer prevents alarm acknowledgement.
+- B1 previous-page long presses now accept holds up to ten seconds.
+
 ## 0.2.1 - 2026-07-14
 
 ### Added
