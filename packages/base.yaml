@@ -7,7 +7,9 @@ esphome:
     name: "fgrfn.esp_rack_monitor"
     version: ${project_version}
   includes:
-    - includes/display_helpers.h
+    - <rack_monitor_helpers.h>
+  libraries:
+    - "RackMonitorHelpers=https://github.com/fgrfn/esp-rack-monitor.git#${rack_monitor_library_ref}"
   on_boot:
     - priority: -100
       then:

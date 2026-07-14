@@ -15,55 +15,52 @@ ESPHome rack-monitoring firmware for a **LilyGO T-Display-S3**. It presents Home
 - Auto rotation, direct page select, backlight entity and automatic night dimming
 - Diagnostic data: HA API state, heartbeat freshness, Wi-Fi RSSI, IP, uptime, heap, PSRAM, loop time, firmware version and reset reason
 - Authenticated local web UI, native encrypted API and password-protected native OTA
-- Modular ESPHome packages and shared C++ display helpers
+- One-file installation through the ESPHome dashboard
 - Pinned ESPHome builds, weekly compatibility checks, workflow linting and automated dependency updates
 
-## Repository layout
+## Installation through Home Assistant
 
-```text
-esp-rack-monitor.yaml               Main substitutions and package imports
-packages/base.yaml                  Board, project and diagnostics base
-packages/connectivity.yaml          Wi-Fi, API, OTA and protected web UI
-packages/entities.yaml              HA inputs, local diagnostics and alarms
-packages/controls.yaml              Page, rotation, buttons and night mode
-packages/display.yaml               Fonts, graphs and all display pages
-includes/display_helpers.h          Shared validation, colors, bars and header helpers
-secrets.example.yaml                Required secret keys without real credentials
-home-assistant/                     Optional HA heartbeat package
-docs/                               Pinout, entities and thresholds
-.github/workflows/                  Compile, compatibility, lint and release automation
+Only **one YAML file** must be copied into ESPHome:
+
+1. In Home Assistant, open **ESPHome**.
+2. Create a new device or open the YAML editor of the existing Rack Monitor.
+3. Copy the complete contents of [`esp-rack-monitor.yaml`](esp-rack-monitor.yaml) into the editor.
+4. Adjust the Home Assistant entity IDs in the `substitutions` section when necessary.
+5. Validate and install the configuration.
+
+ESPHome downloads the implementation files and the display-helper library automatically from this GitHub repository during validation. No local `packages/`, `includes/` or repository checkout is required. Internet access is therefore required while compiling.
+
+The following entries must exist in the normal global ESPHome `secrets.yaml`:
+
+```yaml
+wifi_ssid: "YOUR_WIFI"
+wifi_password: "YOUR_WIFI_PASSWORD"
+fallback_ap_password: "A_LONG_FALLBACK_PASSWORD"
+api_encryption_key: "YOUR_DEVICE_API_KEY"
+ota_password: "A_LONG_OTA_PASSWORD"
+web_server_username: "admin"
+web_server_password: "A_LONG_WEB_PASSWORD"
 ```
 
-## Installation
+A matching template is available in [`secrets.example.yaml`](secrets.example.yaml).
 
-1. Copy or clone the repository contents directly into the ESPHome configuration directory, normally `/config/esphome`.
-2. Keep `esp-rack-monitor.yaml`, `packages/`, `includes/` and `secrets.yaml` on the same directory level.
-3. Add the values listed in `secrets.example.yaml` to the normal ESPHome `secrets.yaml` file.
-4. Edit the substitutions in `esp-rack-monitor.yaml`, especially entity IDs and thresholds.
-5. Optionally install `home-assistant/esp-rack-monitor-package.yaml` as a Home Assistant package and restart Home Assistant. This enables reliable stale-feed detection.
-6. Validate and flash `esp-rack-monitor.yaml` from ESPHome.
+The optional [`home-assistant/esp-rack-monitor-package.yaml`](home-assistant/esp-rack-monitor-package.yaml) Home Assistant package enables reliable heartbeat-based stale-feed detection. The display still compiles without it.
 
-Expected Home Assistant layout:
+## How the one-file installer works
+
+The public `esp-rack-monitor.yaml` contains your substitutions and local secret references. ESPHome then loads these implementation files as an official Remote/Git Package:
 
 ```text
-/config/esphome/
-├── esp-rack-monitor.yaml
-├── secrets.yaml
-├── packages/
-│   ├── base.yaml
-│   ├── connectivity.yaml
-│   ├── controls.yaml
-│   ├── display.yaml
-│   └── entities.yaml
-└── includes/
-    └── display_helpers.h
+packages/base.yaml
+packages/connectivity.yaml
+packages/entities.yaml
+packages/controls.yaml
+packages/display.yaml
 ```
 
-The web server is deliberately restricted to a local asset bundle, has HTTP authentication enabled and has web-based OTA disabled. Do not expose it to the internet.
+The header-only display helper is fetched as the `RackMonitorHelpers` PlatformIO library from the same repository. Remote implementation files never perform their own `!secret` lookups; all credentials remain in your local ESPHome configuration.
 
-## Migrating from the former `configs/` layout
-
-Move `configs/esp-rack-monitor.yaml` to `/config/esphome/esp-rack-monitor.yaml`. Remove `../` from all five package include paths and use `packages/...`. In `packages/base.yaml`, use `includes/display_helpers.h` instead of `../includes/display_helpers.h`. The repository now already contains this corrected layout.
+By default the installer follows `main`. Set both the package `ref` and `rack_monitor_library_ref` to a release tag when you want to keep a fixed version.
 
 ## Controls
 
@@ -92,11 +89,9 @@ Every numeric Home Assistant input has a timeout filter. A timed-out value becom
 
 ## CI and releases
 
-Pull requests compile with the pinned ESPHome version declared in `.github/workflows/esphome.yml`. Direct `main` pushes compile only when firmware-related files change. Validation artifacts expire after seven days and are not intended for installation.
+Pull requests compile the exact one-file installer against the pull-request branch. This verifies both Remote/Git Package loading and the helper-library download. A scheduled workflow compiles against the latest ESPHome release every Monday. Workflow files are checked with `actionlint`, and Dependabot proposes grouped GitHub Actions updates each week.
 
-A scheduled workflow compiles with the latest ESPHome release every Monday. Workflow files are checked with `actionlint`, and Dependabot proposes grouped GitHub Actions updates each week.
-
-Tags such as `v0.2.0` are compiled for validation and create a source-only GitHub Release. Prebuilt public firmware is intentionally not attached because each installation requires its own configuration.
+Tags such as `v0.2.1` are compiled for validation and create a source-only GitHub Release. Prebuilt public firmware is intentionally not attached because every installation uses individual credentials and Home Assistant entities.
 
 ## License
 

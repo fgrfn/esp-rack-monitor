@@ -7,7 +7,8 @@ on:
     paths:
       - "esp-rack-monitor.yaml"
       - "packages/**"
-      - "includes/**"
+      - "src/**"
+      - "library.json"
       - "secrets.example.yaml"
       - ".github/scripts/**"
       - ".github/workflows/esphome.yml"
@@ -36,17 +37,44 @@ jobs:
         shell: bash
         run: bash .github/scripts/create-ci-secrets.sh
 
-      - name: Compile firmware
-        id: esphome-build
-        uses: esphome/build-action@v7
-        with:
-          yaml-file: esp-rack-monitor.yaml
-          version: ${{ env.ESPHOME_VERSION }}
+      - name: Point remote packages to tested ref
+        shell: bash
+        run: bash .github/scripts/prepare-remote-ref.sh "${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
 
-      - name: Upload firmware artifact
+      - name: Compile firmware
+        shell: bash
+        run: |
+          set -o pipefail
+          docker run --rm \
+            -v "${PWD}:/config" \
+            -w /config \
+            "ghcr.io/esphome/esphome:${ESPHOME_VERSION}" \
+            compile esp-rack-monitor.yaml 2>&1 | tee esphome-build.log
+
+      - name: Stage firmware artifacts
+        if: success()
+        shell: bash
+        run: |
+          mkdir -p build-artifacts
+          find .esphome/build -type f \
+            \( -name 'firmware.bin' -o -name 'firmware.ota.bin' -o -name 'firmware.factory.bin' \) \
+            -exec cp -v '{}' build-artifacts/ \;
+          test -n "$(find build-artifacts -type f -name '*.bin' -print -quit)"
+
+      - name: Upload build log
+        if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ steps.esphome-build.outputs.name }}
-          path: ${{ steps.esphome-build.outputs.name }}
+          name: esp-rack-monitor-build-log
+          path: esphome-build.log
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload firmware artifact
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: esp-rack-monitor-firmware
+          path: build-artifacts/
           if-no-files-found: error
           retention-days: 7

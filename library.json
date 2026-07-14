@@ -1,0 +1,13 @@
+{
+  "name": "RackMonitorHelpers",
+  "version": "0.2.1",
+  "description": "Header-only display helpers for ESP Rack Monitor",
+  "keywords": ["esphome", "display", "rack-monitor"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/fgrfn/esp-rack-monitor.git"
+  },
+  "frameworks": ["arduino", "espidf"],
+  "platforms": ["espressif32"],
+  "headers": "rack_monitor_helpers.h"
+}
