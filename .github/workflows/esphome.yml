@@ -4,39 +4,44 @@ on:
   push:
     branches:
       - main
-      - "agent/**"
+    paths:
+      - "configs/**"
+      - "packages/**"
+      - "includes/**"
+      - "secrets.example.yaml"
+      - ".github/scripts/**"
+      - ".github/workflows/esphome.yml"
   pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: esphome-build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  ESPHOME_VERSION: "2026.6.4"
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Create CI secrets
+      - name: Create ephemeral CI secrets
         shell: bash
-        run: |
-          cat > configs/secrets.yaml <<'SECRETS'
-          wifi_ssid: "ci-network"
-          wifi_password: "ci-password-1234"
-          fallback_ap_password: "ci-fallback-password"
-          api_encryption_key: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-          ota_password: "ci-ota-password"
-          web_server_username: "ci-user"
-          web_server_password: "ci-web-password"
-          SECRETS
+        run: bash .github/scripts/create-ci-secrets.sh
 
       - name: Compile firmware
         id: esphome-build
         uses: esphome/build-action@v7
         with:
           yaml-file: configs/esp-rack-monitor.yaml
-          version: latest
+          version: ${{ env.ESPHOME_VERSION }}
 
       - name: Upload firmware artifact
         uses: actions/upload-artifact@v4
@@ -44,3 +49,4 @@ jobs:
           name: ${{ steps.esphome-build.outputs.name }}
           path: ${{ steps.esphome-build.outputs.name }}
           if-no-files-found: error
+          retention-days: 7
