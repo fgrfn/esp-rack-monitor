@@ -9,10 +9,18 @@ esphome:
   includes:
     - <rack_monitor_helpers.h>
   libraries:
-    - "RackMonitorHelpers=https://github.com/fgrfn/esp-rack-monitor.git#${rack_monitor_library_ref}"
+    # The versioned dependency name deliberately changes with releases. PlatformIO
+    # otherwise reuses an older Git checkout when the source still points to main.
+    - "${rack_monitor_helper_package}=https://github.com/fgrfn/esp-rack-monitor.git#${rack_monitor_library_ref}"
   on_boot:
     - priority: -100
       then:
+        - lambda: |-
+            #ifndef RACK_MONITOR_HELPERS_API_VERSION
+            #error "Outdated Rack Monitor helper cache. Run Clean Build Files and compile again."
+            #elif RACK_MONITOR_HELPERS_API_VERSION < 302
+            #error "Rack Monitor helper API is too old for firmware 0.3.2."
+            #endif
         - delay: 2s
         - script.execute: initialize_runtime
         - component.update: main_display
