@@ -13,8 +13,8 @@ esphome:
   on_boot:
     - priority: -100
       then:
-        - script.execute: show_current_page
-        - script.execute: apply_backlight
+        - delay: 2s
+        - script.execute: initialize_runtime
         - component.update: main_display
 
 esp32:
