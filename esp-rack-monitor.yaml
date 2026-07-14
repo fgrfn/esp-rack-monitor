@@ -7,9 +7,9 @@
 substitutions:
   device_name: esp-rack-monitor
   friendly_name: ESP Rack Monitor
-  project_version: "0.3.2"
+  project_version: "0.3.3"
 
-  # Update channel. Keep "main" for the newest code or use a release tag such as v0.3.2.
+  # Update channel. Keep "main" for the newest code or use a release tag such as v0.3.3.
   rack_monitor_library_ref: main
 
   # PlatformIO caches Git libraries separately from ESPHome Remote Packages.
@@ -33,6 +33,7 @@ substitutions:
 
   # Runtime defaults. Most of these become persistent Home Assistant controls.
   display_update_interval: 5s
+  graph_sample_interval: 30s
   sensor_stale_timeout: 30min
   heartbeat_timeout: 3min
   wake_duration: 45s
@@ -150,3 +151,16 @@ packages:
     ref: ${rack_monitor_library_ref}
     # main is a moving target; always refresh so packages and helper code cannot diverge.
     refresh: 0s
+
+# ESPHome graphs store points only when their source sensors publish.
+# Heartbeat filters guarantee a regular trend even when a value remains unchanged.
+sensor:
+  - id: !extend power_total
+    filters:
+      - timeout: ${sensor_stale_timeout}
+      - heartbeat: ${graph_sample_interval}
+
+  - id: !extend temp_rack
+    filters:
+      - timeout: ${sensor_stale_timeout}
+      - heartbeat: ${graph_sample_interval}
