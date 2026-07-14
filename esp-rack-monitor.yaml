@@ -163,3 +163,13 @@ sensor:
     filters:
       - timeout: ${sensor_stale_timeout}
       - heartbeat: 30s
+
+# Reduce network pressure from the large set of runtime controls and diagnostics.
+# Local configuration overrides the matching components from the remote package.
+api:
+  batch_delay: 250ms
+
+web_server:
+  version: 2
+  local: false
+  log: false
