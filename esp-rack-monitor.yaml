@@ -7,10 +7,14 @@
 substitutions:
   device_name: esp-rack-monitor
   friendly_name: ESP Rack Monitor
-  project_version: "0.3.1"
+  project_version: "0.3.2"
 
-  # Update channel. Keep "main" for the newest code or use a release tag such as v0.3.1.
+  # Update channel. Keep "main" for the newest code or use a release tag such as v0.3.2.
   rack_monitor_library_ref: main
+
+  # PlatformIO caches Git libraries separately from ESPHome Remote Packages.
+  # A versioned dependency name guarantees that both parts are refreshed together.
+  rack_monitor_helper_package: RackMonitorHelpers_0_3_2
 
   # Local secrets. Remote package files never read secrets directly.
   wifi_ssid_value: !secret wifi_ssid
@@ -144,4 +148,5 @@ packages:
       - packages/controls.yaml
       - packages/display.yaml
     ref: ${rack_monitor_library_ref}
-    refresh: 5min
+    # main is a moving target; always refresh so packages and helper code cannot diverge.
+    refresh: 0s

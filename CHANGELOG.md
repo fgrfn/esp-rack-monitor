@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented here.
 
+## 0.3.2 - 2026-07-14
+
+### Fixed
+
+- Versioned the PlatformIO helper dependency so an older cached `rack_monitor_helpers.h` can no longer be combined with newer Remote/Git Package YAML files.
+- Updated the helper library manifest from the obsolete 0.2.1 identity to the matching 0.3.2 identity.
+- Changed the moving `main` package channel to refresh on every validation, preventing package/helper drift during active development.
+
 ## 0.3.1 - 2026-07-14
 
 ### Fixed
