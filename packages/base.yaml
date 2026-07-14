@@ -1,6 +1,3 @@
-defaults:
-  rack_monitor_library_ref: main
-
 esphome:
   name: ${device_name}
   friendly_name: ${friendly_name}
