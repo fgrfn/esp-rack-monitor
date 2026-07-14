@@ -2,6 +2,24 @@
 
 All notable changes to this project are documented here.
 
+## 0.2.1 - 2026-07-14
+
+### Added
+
+- One-file ESPHome Dashboard installation using official Remote/Git Packages.
+- Header-only `RackMonitorHelpers` PlatformIO library for automatic helper delivery.
+- CI branch-ref preparation so pull requests validate their own remote package and helper sources.
+
+### Changed
+
+- The public `esp-rack-monitor.yaml` now downloads all implementation modules automatically.
+- Secret lookups moved from remote package files into the local one-file installer.
+- README installation instructions now require only copying one YAML file into ESPHome.
+
+### Fixed
+
+- Copying only `esp-rack-monitor.yaml` no longer fails because local `packages/` or `includes/` directories are missing.
+
 ## 0.2.0 - 2026-07-14
 
 ### Added
