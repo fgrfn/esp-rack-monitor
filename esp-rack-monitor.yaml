@@ -33,7 +33,6 @@ substitutions:
 
   # Runtime defaults. Most of these become persistent Home Assistant controls.
   display_update_interval: 5s
-  graph_sample_interval: 30s
   sensor_stale_timeout: 30min
   heartbeat_timeout: 3min
   wake_duration: 45s
@@ -153,14 +152,14 @@ packages:
     refresh: 0s
 
 # ESPHome graphs store points only when their source sensors publish.
-# Heartbeat filters guarantee a regular trend even when a value remains unchanged.
+# A fixed 30-second heartbeat guarantees a visible trend even when a value is unchanged.
 sensor:
   - id: !extend power_total
     filters:
       - timeout: ${sensor_stale_timeout}
-      - heartbeat: ${graph_sample_interval}
+      - heartbeat: 30s
 
   - id: !extend temp_rack
     filters:
       - timeout: ${sensor_stale_timeout}
-      - heartbeat: ${graph_sample_interval}
+      - heartbeat: 30s
