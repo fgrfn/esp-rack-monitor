@@ -1,10 +1,25 @@
 # ESP Rack Monitor - LilyGO T-Display-S3
-# Project configuration. Adjust entity IDs and thresholds below.
+#
+# Copy this entire file into ESPHome in Home Assistant.
+# ESPHome downloads the implementation automatically from GitHub.
+# Only the secrets referenced below must exist in your global secrets.yaml.
 
 substitutions:
   device_name: esp-rack-monitor
   friendly_name: ESP Rack Monitor
-  project_version: "0.2.0"
+  project_version: "0.2.1"
+
+  # Remote implementation version. Use a release tag for a fixed version.
+  rack_monitor_library_ref: main
+
+  # Local secrets. Remote package files never read secrets directly.
+  wifi_ssid_value: !secret wifi_ssid
+  wifi_password_value: !secret wifi_password
+  fallback_ap_password_value: !secret fallback_ap_password
+  api_encryption_key_value: !secret api_encryption_key
+  ota_password_value: !secret ota_password
+  web_server_username_value: !secret web_server_username
+  web_server_password_value: !secret web_server_password
 
   # Display behavior
   rotation_interval: 12s
@@ -47,7 +62,7 @@ substitutions:
   entity_rack_energy_today: sensor.homelab_rack_energy_today
   entity_heartbeat: sensor.esp_rack_monitor_heartbeat
 
-  # Optional host availability binary sensors. Missing entities are ignored.
+  # Optional host availability binary sensors
   entity_unraid_online: binary_sensor.unraid_online
   entity_proxmox_online: binary_sensor.proxmox_online
   entity_nas_online: binary_sensor.nas_online
@@ -95,8 +110,13 @@ substitutions:
   disk_critical: "90"
 
 packages:
-  base: !include packages/base.yaml
-  connectivity: !include packages/connectivity.yaml
-  entities: !include packages/entities.yaml
-  controls: !include packages/controls.yaml
-  display: !include packages/display.yaml
+  esp_rack_monitor:
+    url: https://github.com/fgrfn/esp-rack-monitor
+    files:
+      - packages/base.yaml
+      - packages/connectivity.yaml
+      - packages/entities.yaml
+      - packages/controls.yaml
+      - packages/display.yaml
+    ref: main
+    refresh: 1d
