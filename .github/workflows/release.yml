@@ -27,6 +27,10 @@ jobs:
         shell: bash
         run: bash .github/scripts/create-ci-secrets.sh
 
+      - name: Point remote packages to release tag
+        shell: bash
+        run: bash .github/scripts/prepare-remote-ref.sh "${GITHUB_REF_NAME}"
+
       - name: Compile tagged source
         uses: esphome/build-action@v7
         with:
