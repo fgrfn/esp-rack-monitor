@@ -1,0 +1,15 @@
+# Optional Home Assistant package.
+# Include with: homeassistant: packages: !include_dir_named packages
+
+# The heartbeat changes every minute. ESPHome uses it to detect a stale HA data feed.
+template:
+  - triggers:
+      - trigger: time_pattern
+        minutes: "/1"
+    sensor:
+      - name: "ESP Rack Monitor Heartbeat"
+        default_entity_id: sensor.esp_rack_monitor_heartbeat
+        unique_id: esp_rack_monitor_heartbeat
+        icon: mdi:heart-pulse
+        unit_of_measurement: s
+        state: "{{ as_timestamp(now()) | int }}"

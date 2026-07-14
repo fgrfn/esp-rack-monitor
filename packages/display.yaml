@@ -1,0 +1,296 @@
+output:
+  - platform: ledc
+    pin: GPIO38
+    id: backlight_output
+    frequency: 2000Hz
+
+light:
+  - platform: monochromatic
+    output: backlight_output
+    name: "${friendly_name} Hintergrundbeleuchtung"
+    id: display_backlight
+    restore_mode: ALWAYS_ON
+    default_transition_length: 0s
+
+font:
+  - file:
+      type: gfonts
+      family: Roboto
+      weight: 400
+    id: f_xs
+    size: 11
+
+  - file:
+      type: gfonts
+      family: Roboto
+      weight: 400
+    id: f_s
+    size: 14
+
+  - file:
+      type: gfonts
+      family: Roboto
+      weight: 500
+    id: f_m
+    size: 18
+
+  - file:
+      type: gfonts
+      family: Roboto
+      weight: 700
+    id: f_l
+    size: 30
+
+  - file:
+      type: gfonts
+      family: Roboto
+      weight: 700
+    id: f_xl
+    size: 44
+
+color:
+  - id: c_bg
+    hex: "0D1117"
+  - id: c_panel
+    hex: "161B22"
+  - id: c_text
+    hex: "E6EDF3"
+  - id: c_muted
+    hex: "8B949E"
+  - id: c_accent
+    hex: "58A6FF"
+  - id: c_ok
+    hex: "3FB950"
+  - id: c_warn
+    hex: "D29922"
+  - id: c_crit
+    hex: "F85149"
+  - id: c_strom
+    hex: "E8730A"
+  - id: c_purple
+    hex: "A371F7"
+
+spi:
+  type: octal
+  clk_pin: GPIO8
+  data_pins:
+    - GPIO39
+    - GPIO40
+    - GPIO41
+    - GPIO42
+    - number: GPIO45
+      ignore_strapping_warning: true
+    - number: GPIO46
+      ignore_strapping_warning: true
+    - GPIO47
+    - GPIO48
+
+graph:
+  - id: power_history
+    duration: 1h
+    width: 132
+    height: 82
+    x_grid: 15min
+    min_value: 0
+    max_value: ${power_total_max}
+    traces:
+      - sensor: power_total
+        line_type: SOLID
+        line_thickness: 2
+        continuous: true
+        color: c_strom
+
+  - id: rack_temp_history
+    duration: 1h
+    width: 132
+    height: 82
+    x_grid: 15min
+    min_value: ${temp_rack_graph_min}
+    max_value: ${temp_rack_graph_max}
+    traces:
+      - sensor: temp_rack
+        line_type: SOLID
+        line_thickness: 2
+        continuous: true
+        color: c_purple
+
+display:
+  - platform: mipi_spi
+    model: t-display-s3
+    id: main_display
+    rotation: 270
+    update_interval: ${display_update_interval}
+    pages:
+      - id: page_overview
+        lambda: |-
+          it.fill(id(c_bg));
+          const auto now = id(ha_time).now();
+          rack_monitor::draw_header(it, id(f_m), id(f_s), id(c_accent), id(c_bg), "RACK MONITOR", now,
+                                    id(auto_rotate_switch).state, id(alarm_active).state);
+          rack_monitor::draw_button_hints(it, id(f_xs), id(c_muted), id(auto_rotate_switch).state, id(alarm_active).state);
+
+          const float power = id(power_total).state;
+          const float rack_temp = id(temp_rack).state;
+          const auto pc = rack_monitor::power_color(power, ${power_total_low}, ${power_total_warn}, ${power_total_critical},
+                                                     id(c_ok), id(c_accent), id(c_warn), id(c_crit));
+          const auto tc = rack_monitor::threshold_color(rack_temp, ${temp_rack_warn}, ${temp_rack_critical},
+                                                        id(c_ok), id(c_warn), id(c_crit));
+
+          it.print(34, 36, id(f_xs), id(c_muted), "GESAMTVERBRAUCH");
+          if (rack_monitor::valid(power)) it.printf(34, 52, id(f_xl), pc, "%.0f", power);
+          else it.print(34, 52, id(f_xl), id(c_muted), "--");
+          it.print(122, 69, id(f_s), id(c_muted), "W");
+          it.print(34, 98, id(f_xs), pc, rack_monitor::power_status(power, ${power_total_low}, ${power_total_warn}, ${power_total_critical}));
+          rack_monitor::draw_bar(it, 34, 123, 120, 5, power, ${power_total_max}, id(c_muted), pc);
+
+          it.line(168, 31, 168, 145, id(c_muted));
+          it.print(180, 36, id(f_xs), id(c_muted), "RACK TEMP");
+          if (rack_monitor::valid(rack_temp)) it.printf(180, 52, id(f_xl), tc, "%.1f", rack_temp);
+          else it.print(180, 52, id(f_xl), id(c_muted), "--");
+          it.print(283, 58, id(f_s), id(c_muted), "°C");
+          it.print(180, 98, id(f_xs), tc, rack_monitor::threshold_status(rack_temp, ${temp_rack_warn}, ${temp_rack_critical}));
+          rack_monitor::draw_bar(it, 180, 123, 120, 5, rack_temp, ${temp_rack_graph_max}, id(c_muted), tc);
+
+          const bool fresh = !id(heartbeat_seen) || rack_monitor::valid(id(data_heartbeat).state);
+          it.printf(34, 144, id(f_xs), fresh && id(api_status).state ? id(c_ok) : id(c_warn),
+                    "%s", !id(api_status).state ? "HA OFFLINE" : (fresh ? "DATA OK" : "DATA STALE"));
+          if (rack_monitor::valid(id(rack_cost_hour).state)) it.printf(213, 144, id(f_xs), id(c_muted), "%.3f EUR/h", id(rack_cost_hour).state);
+
+      - id: page_power
+        lambda: |-
+          it.fill(id(c_bg));
+          rack_monitor::draw_header(it, id(f_m), id(f_s), id(c_strom), id(c_bg), "STROM", id(ha_time).now(),
+                                    id(auto_rotate_switch).state, id(alarm_active).state);
+          rack_monitor::draw_button_hints(it, id(f_xs), id(c_muted), id(auto_rotate_switch).state, id(alarm_active).state);
+
+          auto draw_card = [&](int x, int y, const char *label, float value, float low, float warn, float critical, float maximum) {
+            const auto color = rack_monitor::power_color(value, low, warn, critical, id(c_ok), id(c_accent), id(c_warn), id(c_crit));
+            it.print(x, y, id(f_xs), id(c_muted), label);
+            if (rack_monitor::valid(value)) it.printf(x, y + 14, id(f_l), color, "%.0f", value);
+            else it.print(x, y + 14, id(f_l), id(c_muted), "--");
+            it.print(x + 60, y + 25, id(f_s), id(c_muted), "W");
+            it.print(x + 79, y + 27, id(f_xs), color, rack_monitor::power_status(value, low, warn, critical));
+            rack_monitor::draw_bar(it, x, y + 49, 112, 5, value, maximum, id(c_muted), color);
+          };
+
+          draw_card(34, 38, "UNRAID", id(power_unraid).state, ${power_unraid_low}, ${power_unraid_warn}, ${power_unraid_critical}, ${power_unraid_max});
+          draw_card(174, 38, "PROXMOX", id(power_proxmox).state, ${power_proxmox_low}, ${power_proxmox_warn}, ${power_proxmox_critical}, ${power_proxmox_max});
+          draw_card(34, 101, "NAS", id(power_nas).state, ${power_nas_low}, ${power_nas_warn}, ${power_nas_critical}, ${power_nas_max});
+          draw_card(174, 101, "JETKVM+MODEM", id(power_jetkvm_modem).state, ${power_jetkvm_low}, ${power_jetkvm_warn}, ${power_jetkvm_critical}, ${power_jetkvm_max});
+
+      - id: page_temps
+        lambda: |-
+          it.fill(id(c_bg));
+          rack_monitor::draw_header(it, id(f_m), id(f_s), id(c_crit), id(c_bg), "TEMPERATUREN", id(ha_time).now(),
+                                    id(auto_rotate_switch).state, id(alarm_active).state);
+          rack_monitor::draw_button_hints(it, id(f_xs), id(c_muted), id(auto_rotate_switch).state, id(alarm_active).state);
+
+          auto draw_card = [&](int x, int y, const char *label, float value, float warn, float critical, float maximum) {
+            const auto color = rack_monitor::threshold_color(value, warn, critical, id(c_ok), id(c_warn), id(c_crit));
+            it.print(x, y, id(f_xs), id(c_muted), label);
+            if (rack_monitor::valid(value)) it.printf(x, y + 14, id(f_l), color, "%.0f°C", value);
+            else it.print(x, y + 14, id(f_l), id(c_muted), "--°C");
+            it.print(x, y + 44, id(f_xs), color, rack_monitor::threshold_status(value, warn, critical));
+            rack_monitor::draw_bar(it, x, y + 57, 112, 5, value, maximum, id(c_muted), color);
+          };
+
+          draw_card(34, 37, "RACK", id(temp_rack).state, ${temp_rack_warn}, ${temp_rack_critical}, ${temp_rack_graph_max});
+          draw_card(174, 37, "UNRAID CPU", id(temp_unraid).state, ${temp_cpu_warn}, ${temp_cpu_critical}, 100.0f);
+          draw_card(34, 101, "PROXMOX CPU", id(temp_proxmox).state, ${temp_cpu_warn}, ${temp_cpu_critical}, 100.0f);
+          draw_card(174, 101, "NAS", id(temp_nas).state, ${temp_nas_warn}, ${temp_nas_critical}, 90.0f);
+
+      - id: page_compute
+        lambda: |-
+          it.fill(id(c_bg));
+          rack_monitor::draw_header(it, id(f_m), id(f_s), id(c_ok), id(c_bg), "CPU / RAM / DISK", id(ha_time).now(),
+                                    id(auto_rotate_switch).state, id(alarm_active).state);
+          rack_monitor::draw_button_hints(it, id(f_xs), id(c_muted), id(auto_rotate_switch).state, id(alarm_active).state);
+
+          auto draw_metric = [&](int x, int y, const char *label, float value, float warn, float critical) {
+            const auto color = rack_monitor::threshold_color(value, warn, critical, id(c_ok), id(c_warn), id(c_crit));
+            it.print(x, y, id(f_xs), id(c_muted), label);
+            if (rack_monitor::valid(value)) it.printf(x + 35, y - 2, id(f_s), color, "%.0f%%", value);
+            else it.print(x + 35, y - 2, id(f_s), id(c_muted), "--%");
+            rack_monitor::draw_bar(it, x, y + 16, 76, 5, value, 100.0f, id(c_muted), color);
+          };
+          auto draw_system = [&](int x, const char *name, float cpu, float ram, float disk) {
+            it.print(x, 36, id(f_s), id(c_accent), name);
+            draw_metric(x, 58, "CPU", cpu, ${cpu_warn}, ${cpu_critical});
+            draw_metric(x, 92, "RAM", ram, ${ram_warn}, ${ram_critical});
+            draw_metric(x, 126, "DISK", disk, ${disk_warn}, ${disk_critical});
+          };
+
+          draw_system(34, "UNRAID", id(cpu_unraid).state, id(ram_unraid).state, id(disk_unraid).state);
+          draw_system(128, "PROX", id(cpu_proxmox).state, id(ram_proxmox).state, id(disk_proxmox).state);
+          draw_system(226, "NAS", id(cpu_nas).state, id(ram_nas).state, id(disk_nas).state);
+
+      - id: page_trends
+        lambda: |-
+          it.fill(id(c_bg));
+          rack_monitor::draw_header(it, id(f_m), id(f_s), id(c_purple), id(c_bg), "TRENDS 1H", id(ha_time).now(),
+                                    id(auto_rotate_switch).state, id(alarm_active).state);
+          rack_monitor::draw_button_hints(it, id(f_xs), id(c_muted), id(auto_rotate_switch).state, id(alarm_active).state);
+          it.print(34, 35, id(f_xs), id(c_strom), "RACK-VERBRAUCH");
+          it.print(174, 35, id(f_xs), id(c_purple), "RACK-TEMPERATUR");
+          it.graph(34, 53, id(power_history), id(c_muted));
+          it.graph(174, 53, id(rack_temp_history), id(c_muted));
+          if (rack_monitor::valid(id(power_total).state)) it.printf(34, 141, id(f_s), id(c_text), "%.0f W", id(power_total).state);
+          if (rack_monitor::valid(id(temp_rack).state)) it.printf(174, 141, id(f_s), id(c_text), "%.1f°C", id(temp_rack).state);
+
+      - id: page_costs
+        lambda: |-
+          it.fill(id(c_bg));
+          rack_monitor::draw_header(it, id(f_m), id(f_s), id(c_strom), id(c_bg), "STROMKOSTEN", id(ha_time).now(),
+                                    id(auto_rotate_switch).state, id(alarm_active).state);
+          rack_monitor::draw_button_hints(it, id(f_xs), id(c_muted), id(auto_rotate_switch).state, id(alarm_active).state);
+
+          const float price = rack_monitor::valid(id(electricity_price).state)
+                                ? id(electricity_price).state / ${electricity_price_divisor} : NAN;
+          it.print(34, 37, id(f_xs), id(c_muted), "AKTUELLER PREIS");
+          if (rack_monitor::valid(price)) it.printf(34, 52, id(f_l), price <= 0.0f ? id(c_ok) : id(c_strom), "%.3f", price);
+          else it.print(34, 52, id(f_l), id(c_muted), "--");
+          it.print(125, 63, id(f_s), id(c_muted), "EUR/kWh");
+
+          auto value = [&](int x, int y, const char *label, float number, const char *unit) {
+            it.print(x, y, id(f_xs), id(c_muted), label);
+            if (rack_monitor::valid(number)) it.printf(x, y + 16, id(f_m), id(c_text), "%.2f %s", number, unit);
+            else it.printf(x, y + 16, id(f_m), id(c_muted), "-- %s", unit);
+          };
+          value(34, 101, "PRO STUNDE", id(rack_cost_hour).state, "EUR");
+          value(145, 101, "PRO TAG", id(rack_cost_day).state, "EUR");
+          value(242, 101, "30 TAGE", id(rack_cost_month).state, "EUR");
+          if (rack_monitor::valid(id(rack_energy_today).state)) it.printf(180, 55, id(f_s), id(c_accent), "Heute %.2f kWh", id(rack_energy_today).state);
+          if (rack_monitor::valid(id(power_total).state)) it.printf(180, 78, id(f_s), id(c_muted), "Rack %.0f W", id(power_total).state);
+
+      - id: page_diagnostics
+        lambda: |-
+          it.fill(id(c_bg));
+          rack_monitor::draw_header(it, id(f_m), id(f_s), id(c_accent), id(c_bg), "DIAGNOSE", id(ha_time).now(),
+                                    id(auto_rotate_switch).state, id(alarm_active).state);
+          rack_monitor::draw_button_hints(it, id(f_xs), id(c_muted), id(auto_rotate_switch).state, id(alarm_active).state);
+
+          const bool fresh = !id(heartbeat_seen) || rack_monitor::valid(id(data_heartbeat).state);
+          const std::string uptime = rack_monitor::uptime_text(id(device_uptime).state);
+          it.printf(34, 37, id(f_s), id(api_status).state ? id(c_ok) : id(c_crit), "HA API: %s", id(api_status).state ? "ONLINE" : "OFFLINE");
+          it.printf(180, 37, id(f_s), fresh ? id(c_ok) : id(c_warn), "DATA: %s", fresh ? "FRESH" : "STALE");
+          it.printf(34, 61, id(f_s), id(c_text), "WLAN: %.0f dBm", id(wifi_rssi).state);
+          it.printf(180, 61, id(f_s), id(c_text), "IP: %s", id(device_ip).state.c_str());
+          it.printf(34, 85, id(f_s), id(c_text), "UPTIME: %s", uptime.c_str());
+          it.printf(180, 85, id(f_s), id(c_text), "HEAP: %.0f kB", id(heap_free).state / 1024.0f);
+          it.printf(34, 109, id(f_s), id(c_text), "PSRAM: %.0f kB", id(psram_free).state / 1024.0f);
+          it.printf(180, 109, id(f_s), id(c_text), "LOOP: %.0f ms", id(loop_time).state);
+          it.printf(34, 133, id(f_xs), id(c_muted), "FW %s / ESPHome %s", "${project_version}", id(esphome_version).state.c_str());
+          it.printf(34, 150, id(f_xs), id(c_muted), "RESET: %.36s", id(reset_reason).state.c_str());
+
+      - id: page_alarm
+        lambda: |-
+          it.fill(id(c_bg));
+          rack_monitor::draw_header(it, id(f_m), id(f_s), id(c_crit), id(c_bg), "KRITISCHER ALARM", id(ha_time).now(), false, true);
+          it.filled_rectangle(22, 39, 276, 82, id(c_panel));
+          it.rectangle(22, 39, 276, 82, id(c_crit));
+          it.print(34, 50, id(f_xs), id(c_crit), "URSACHE");
+          it.printf(34, 70, id(f_m), id(c_text), "%.30s", id(alarm_reason).state.c_str());
+          if (rack_monitor::valid(id(temp_rack).state)) it.printf(34, 100, id(f_s), id(c_muted), "Rack %.1f°C", id(temp_rack).state);
+          if (rack_monitor::valid(id(power_total).state)) it.printf(170, 100, id(f_s), id(c_muted), "Power %.0f W", id(power_total).state);
+          it.print(34, 133, id(f_s), id(c_warn), "B2 lange druecken: quittieren");
+          it.print(34, 153, id(f_xs), id(c_muted), "Alarm bleibt in Home Assistant sichtbar");

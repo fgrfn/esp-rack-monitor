@@ -1,8 +1,14 @@
 # ESPHome / local secrets
 secrets.yaml
+configs/secrets.yaml
 *.secret.yaml
 .esphome/
 .storage/
+
+# Build output
+build/
+*.bin
+manifest.json
 
 # Python / OS
 __pycache__/

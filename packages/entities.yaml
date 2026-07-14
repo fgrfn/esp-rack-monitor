@@ -1,0 +1,296 @@
+time:
+  - platform: homeassistant
+    id: ha_time
+
+sensor:
+  # Power values
+  - platform: homeassistant
+    id: power_total
+    entity_id: ${entity_power_total}
+    unit_of_measurement: W
+    filters:
+      - timeout: ${sensor_stale_timeout}
+
+  - platform: homeassistant
+    id: power_unraid
+    entity_id: ${entity_power_unraid}
+    unit_of_measurement: W
+    filters:
+      - timeout: ${sensor_stale_timeout}
+
+  - platform: homeassistant
+    id: power_proxmox
+    entity_id: ${entity_power_proxmox}
+    unit_of_measurement: W
+    filters:
+      - timeout: ${sensor_stale_timeout}
+
+  - platform: homeassistant
+    id: power_nas
+    entity_id: ${entity_power_nas}
+    unit_of_measurement: W
+    filters:
+      - timeout: ${sensor_stale_timeout}
+
+  - platform: homeassistant
+    id: power_jetkvm_modem
+    entity_id: ${entity_power_jetkvm_modem}
+    unit_of_measurement: W
+    filters:
+      - timeout: ${sensor_stale_timeout}
+
+  # Temperatures
+  - platform: homeassistant
+    id: temp_rack
+    entity_id: ${entity_temp_rack}
+    unit_of_measurement: °C
+    filters:
+      - timeout: ${sensor_stale_timeout}
+
+  - platform: homeassistant
+    id: temp_unraid
+    entity_id: ${entity_temp_unraid}
+    unit_of_measurement: °C
+    filters:
+      - timeout: ${sensor_stale_timeout}
+
+  - platform: homeassistant
+    id: temp_proxmox
+    entity_id: ${entity_temp_proxmox}
+    unit_of_measurement: °C
+    filters:
+      - timeout: ${sensor_stale_timeout}
+
+  - platform: homeassistant
+    id: temp_nas
+    entity_id: ${entity_temp_nas}
+    unit_of_measurement: °C
+    filters:
+      - timeout: ${sensor_stale_timeout}
+
+  # CPU, RAM and disk utilization
+  - platform: homeassistant
+    id: cpu_unraid
+    entity_id: ${entity_cpu_unraid}
+    unit_of_measurement: "%"
+    filters:
+      - timeout: ${sensor_stale_timeout}
+
+  - platform: homeassistant
+    id: ram_unraid
+    entity_id: ${entity_ram_unraid}
+    unit_of_measurement: "%"
+    filters:
+      - timeout: ${sensor_stale_timeout}
+
+  - platform: homeassistant
+    id: disk_unraid
+    entity_id: ${entity_disk_unraid}
+    unit_of_measurement: "%"
+    filters:
+      - timeout: ${sensor_stale_timeout}
+
+  - platform: homeassistant
+    id: cpu_proxmox
+    entity_id: ${entity_cpu_proxmox}
+    unit_of_measurement: "%"
+    filters:
+      - timeout: ${sensor_stale_timeout}
+
+  - platform: homeassistant
+    id: ram_proxmox
+    entity_id: ${entity_ram_proxmox}
+    unit_of_measurement: "%"
+    filters:
+      - timeout: ${sensor_stale_timeout}
+
+  - platform: homeassistant
+    id: disk_proxmox
+    entity_id: ${entity_disk_proxmox}
+    unit_of_measurement: "%"
+    filters:
+      - timeout: ${sensor_stale_timeout}
+
+  - platform: homeassistant
+    id: cpu_nas
+    entity_id: ${entity_cpu_nas}
+    unit_of_measurement: "%"
+    filters:
+      - timeout: ${sensor_stale_timeout}
+
+  - platform: homeassistant
+    id: ram_nas
+    entity_id: ${entity_ram_nas}
+    unit_of_measurement: "%"
+    filters:
+      - timeout: ${sensor_stale_timeout}
+
+  - platform: homeassistant
+    id: disk_nas
+    entity_id: ${entity_disk_nas}
+    unit_of_measurement: "%"
+    filters:
+      - timeout: ${sensor_stale_timeout}
+
+  # Electricity price and energy
+  - platform: homeassistant
+    id: electricity_price
+    entity_id: ${entity_electricity_price}
+    filters:
+      - timeout: ${sensor_stale_timeout}
+
+  - platform: homeassistant
+    id: rack_energy_today
+    entity_id: ${entity_rack_energy_today}
+    unit_of_measurement: kWh
+    filters:
+      - timeout: 2h
+
+  # Optional heartbeat. If it has never existed, the monitor remains backward compatible.
+  - platform: homeassistant
+    id: data_heartbeat
+    entity_id: ${entity_heartbeat}
+    filters:
+      - timeout: ${heartbeat_timeout}
+    on_value:
+      then:
+        - lambda: |-
+            if (std::isfinite(x)) id(heartbeat_seen) = true;
+
+  # Local diagnostics
+  - platform: wifi_signal
+    id: wifi_rssi
+    name: "${friendly_name} WLAN Signal"
+    update_interval: 60s
+
+  - platform: uptime
+    id: device_uptime
+    name: "${friendly_name} Uptime"
+    type: seconds
+    update_interval: 60s
+
+  - platform: debug
+    free:
+      id: heap_free
+      name: "${friendly_name} Heap Free"
+    psram:
+      id: psram_free
+      name: "${friendly_name} PSRAM Free"
+    loop_time:
+      id: loop_time
+      name: "${friendly_name} Loop Time"
+
+  # Calculated cost sensors
+  - platform: template
+    id: rack_cost_hour
+    name: "${friendly_name} Kosten pro Stunde"
+    unit_of_measurement: "€/h"
+    accuracy_decimals: 4
+    update_interval: 15s
+    lambda: |-
+      if (!rack_monitor::valid(id(power_total).state) || !rack_monitor::valid(id(electricity_price).state)) return NAN;
+      return (id(power_total).state / 1000.0f) * (id(electricity_price).state / ${electricity_price_divisor});
+
+  - platform: template
+    id: rack_cost_day
+    name: "${friendly_name} Kosten pro Tag Hochrechnung"
+    unit_of_measurement: "€/d"
+    accuracy_decimals: 2
+    update_interval: 15s
+    lambda: |-
+      if (!rack_monitor::valid(id(rack_cost_hour).state)) return NAN;
+      return id(rack_cost_hour).state * 24.0f;
+
+  - platform: template
+    id: rack_cost_month
+    name: "${friendly_name} Kosten pro Monat Hochrechnung"
+    unit_of_measurement: "€/Monat"
+    accuracy_decimals: 2
+    update_interval: 15s
+    lambda: |-
+      if (!rack_monitor::valid(id(rack_cost_hour).state)) return NAN;
+      return id(rack_cost_hour).state * 24.0f * 30.0f;
+
+binary_sensor:
+  - platform: status
+    id: api_status
+    name: "${friendly_name} Status"
+
+  - platform: homeassistant
+    id: unraid_online
+    entity_id: ${entity_unraid_online}
+
+  - platform: homeassistant
+    id: proxmox_online
+    entity_id: ${entity_proxmox_online}
+
+  - platform: homeassistant
+    id: nas_online
+    entity_id: ${entity_nas_online}
+
+  - platform: template
+    id: alarm_active
+    name: "${friendly_name} Kritischer Alarm"
+    device_class: problem
+    lambda: |-
+      const auto bad = [](float value, float limit) {
+        return rack_monitor::valid(value) && value >= limit;
+      };
+      if (!id(api_status).state) return true;
+      if (id(heartbeat_seen) && !rack_monitor::valid(id(data_heartbeat).state)) return true;
+      if (id(unraid_online).has_state() && !id(unraid_online).state) return true;
+      if (id(proxmox_online).has_state() && !id(proxmox_online).state) return true;
+      if (id(nas_online).has_state() && !id(nas_online).state) return true;
+      if (bad(id(power_total).state, ${power_total_critical})) return true;
+      if (bad(id(temp_rack).state, ${temp_rack_critical})) return true;
+      if (bad(id(temp_unraid).state, ${temp_cpu_critical})) return true;
+      if (bad(id(temp_proxmox).state, ${temp_cpu_critical})) return true;
+      if (bad(id(temp_nas).state, ${temp_nas_critical})) return true;
+      if (bad(id(cpu_unraid).state, ${cpu_critical}) || bad(id(cpu_proxmox).state, ${cpu_critical}) || bad(id(cpu_nas).state, ${cpu_critical})) return true;
+      if (bad(id(ram_unraid).state, ${ram_critical}) || bad(id(ram_proxmox).state, ${ram_critical}) || bad(id(ram_nas).state, ${ram_critical})) return true;
+      if (bad(id(disk_unraid).state, ${disk_critical}) || bad(id(disk_proxmox).state, ${disk_critical}) || bad(id(disk_nas).state, ${disk_critical})) return true;
+      return false;
+
+text_sensor:
+  - platform: wifi_info
+    ip_address:
+      id: device_ip
+      name: "${friendly_name} IP-Adresse"
+    ssid:
+      id: connected_ssid
+      name: "${friendly_name} WLAN"
+
+  - platform: debug
+    reset_reason:
+      id: reset_reason
+      name: "${friendly_name} Reset-Grund"
+
+  - platform: version
+    id: esphome_version
+    name: "${friendly_name} ESPHome-Version"
+    hide_timestamp: true
+
+  - platform: template
+    id: alarm_reason
+    name: "${friendly_name} Alarmgrund"
+    update_interval: 2s
+    lambda: |-
+      const auto bad = [](float value, float limit) {
+        return rack_monitor::valid(value) && value >= limit;
+      };
+      if (!id(api_status).state) return {"Home Assistant offline"};
+      if (id(heartbeat_seen) && !rack_monitor::valid(id(data_heartbeat).state)) return {"Datenfeed veraltet"};
+      if (id(unraid_online).has_state() && !id(unraid_online).state) return {"Unraid offline"};
+      if (id(proxmox_online).has_state() && !id(proxmox_online).state) return {"Proxmox offline"};
+      if (id(nas_online).has_state() && !id(nas_online).state) return {"NAS offline"};
+      if (bad(id(temp_rack).state, ${temp_rack_critical})) return {"Rack-Temperatur kritisch"};
+      if (bad(id(temp_unraid).state, ${temp_cpu_critical})) return {"Unraid-Temperatur kritisch"};
+      if (bad(id(temp_proxmox).state, ${temp_cpu_critical})) return {"Proxmox-Temperatur kritisch"};
+      if (bad(id(temp_nas).state, ${temp_nas_critical})) return {"NAS-Temperatur kritisch"};
+      if (bad(id(power_total).state, ${power_total_critical})) return {"Rack-Verbrauch kritisch"};
+      if (bad(id(cpu_unraid).state, ${cpu_critical})) return {"Unraid CPU kritisch"};
+      if (bad(id(cpu_proxmox).state, ${cpu_critical})) return {"Proxmox CPU kritisch"};
+      if (bad(id(cpu_nas).state, ${cpu_critical})) return {"NAS CPU kritisch"};
+      if (bad(id(ram_unraid).state, ${ram_critical}) || bad(id(ram_proxmox).state, ${ram_critical}) || bad(id(ram_nas).state, ${ram_critical})) return {"RAM-Auslastung kritisch"};
+      if (bad(id(disk_unraid).state, ${disk_critical}) || bad(id(disk_proxmox).state, ${disk_critical}) || bad(id(disk_nas).state, ${disk_critical})) return {"Speicherplatz kritisch"};
+      return {"Kein kritischer Alarm"};

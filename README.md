@@ -1,77 +1,77 @@
 # ESP Rack Monitor
 
-ESPHome-Projekt für ein LilyGO T-Display-S3 als Rack-Monitoring-Display.
+ESPHome rack-monitoring firmware for a **LilyGO T-Display-S3**. It presents Home Assistant metrics on a compact 320 × 170 display and exposes display controls back to Home Assistant.
+
+![Display page overview](docs/images/display-pages.svg)
 
 ## Features
 
-- Rack-Übersicht mit Gesamtverbrauch und Rack-Temperatur
-- Stromverbrauchsseite für:
-  - Unraid
-  - Proxmox
-  - NAS
-  - JetKVM+Modem
-- Temperaturseite im 2x2-Kartenlayout:
-  - Rack
-  - Unraid
-  - Proxmox
-  - NAS
-- CPU/RAM/DISK-Seite mit 3 Spalten:
-  - Unraid
-  - Proxmox
-  - NAS
-- Auto-Rotation
-- Button-Hinweise links am Display
-- Farbige Statusanzeige für Strom, Temperatur, CPU, RAM und Speicherplatz
+- Seven selectable pages: overview, power, temperatures, systems, one-hour trends, electricity costs and diagnostics
+- Dedicated critical-alarm page with automatic focus and hardware-button acknowledgement
+- Per-device power limits and separate rack/CPU/NAS temperature profiles
+- `STALE`, offline and unavailable handling rather than silently showing old measurements
+- One-hour in-memory graphs for total power and rack temperature
+- Electricity price, hourly cost and day/month projections, including negative prices
+- Auto rotation, direct page select, backlight entity and automatic night dimming
+- Diagnostic data: HA API state, heartbeat freshness, Wi-Fi RSSI, IP, uptime, heap, PSRAM, loop time, firmware version and reset reason
+- Authenticated local web UI, native encrypted API and password-protected native OTA
+- Modular ESPHome packages and shared C++ display helpers
+- GitHub Actions compile validation and tagged firmware releases
 
-## Dateien
+## Repository layout
 
 ```text
-configs/esp-rack-monitor.yaml   ESPHome-Hauptkonfiguration
-secrets.example.yaml            Beispiel für ESPHome-Secrets
-.gitignore                      Ignoriert lokale Secrets und Build-Dateien
-CHANGELOG.md                    Änderungsverlauf
+configs/esp-rack-monitor.yaml       Main substitutions and package imports
+packages/base.yaml                  Board, project and diagnostics base
+packages/connectivity.yaml          Wi-Fi, API, OTA and protected web UI
+packages/entities.yaml              HA inputs, local diagnostics and alarms
+packages/controls.yaml              Page, rotation, buttons and night mode
+packages/display.yaml               Fonts, graphs and all display pages
+includes/display_helpers.h          Shared validation, colors, bars and header helpers
+home-assistant/                     Optional HA heartbeat package
+docs/                               Pinout, entities and thresholds
+.github/workflows/                  Compile and release automation
 ```
 
 ## Installation
 
-1. ESPHome in Home Assistant öffnen.
-2. Neues Gerät anlegen oder bestehendes Gerät bearbeiten.
-3. Inhalt aus `configs/esp-rack-monitor.yaml` übernehmen.
-4. Secrets aus `secrets.example.yaml` in deine ESPHome-Secrets übertragen.
-5. Entity-IDs mit `# ← ANPASSEN` auf deine Home-Assistant-Entitäten ändern.
-6. Flashen.
+1. Copy or clone the complete repository into the ESPHome configuration directory. The relative `packages` and `includes` paths must remain intact.
+2. Copy `secrets.example.yaml` to `configs/secrets.yaml`, or add the listed values to the secrets file used by your ESPHome dashboard.
+3. Edit the substitutions in `configs/esp-rack-monitor.yaml`, especially entity IDs and thresholds.
+4. Optionally install `home-assistant/esp-rack-monitor-package.yaml` as a Home Assistant package and restart Home Assistant. This enables reliable stale-feed detection.
+5. Validate and flash `configs/esp-rack-monitor.yaml` from ESPHome.
 
-## Wichtige Platzhalter-Entitäten
+The web server is deliberately restricted to a local asset bundle, has HTTP authentication enabled and has web-based OTA disabled. Do not expose it to the internet.
 
-Diese Entity-IDs musst du ggf. anpassen:
+## Controls
 
-```yaml
-sensor.proxmox_power
-sensor.jetkvm_modem_power
-sensor.nas_cpu_usage
-sensor.nas_ram_usage
-sensor.unraid_disk_usage
-sensor.proxmox_disk_usage
-sensor.nas_disk_usage
-```
+| Control | Behavior |
+|---|---|
+| Button 1 short | Next page |
+| Button 1 long | Previous page |
+| Button 2 short | Toggle auto rotation |
+| Button 2 long | Acknowledge automatic alarm-page focus |
+| HA page select | Jump directly to a page |
+| HA auto-rotation switch | Enable or disable rotation |
+| HA night-mode switch | Enable or disable scheduled dimming |
+| HA backlight light | Set the display brightness manually |
 
-## Status-Schwellen
+## Configuration
 
-### Strom
+- [Home Assistant entities](docs/ENTITIES.md)
+- [Thresholds and scales](docs/THRESHOLDS.md)
+- [Hardware and pinout](docs/PINOUT.md)
 
-- `< 100 W` = niedrig / grün
-- `100–139 W` = normal / blau
-- `140–199 W` = hoch / gelb
-- `ab 200 W` = kritisch / rot
+The initial defaults preserve the existing rack entity IDs where they were already known. Placeholder entities do not prevent compilation; missing optional online sensors are ignored until they report a state.
 
-### Temperatur
+## Data freshness
 
-- `< 55 °C` = normal / grün
-- `55–69 °C` = hoch / gelb
-- `ab 70 °C` = kritisch / rot
+Every numeric Home Assistant input has a timeout filter. A timed-out value becomes `NaN`, and the display renders `STALE` or `--`. For reliable whole-connection freshness, the optional Home Assistant package updates `sensor.esp_rack_monitor_heartbeat` every minute; the display raises an alarm when that heartbeat expires.
 
-### CPU/RAM/DISK
+## CI and releases
 
-- `< 75 %` = grün
-- `75–89 %` = gelb
-- `ab 90 %` = rot
+Every push and pull request compiles the ESPHome configuration with the official ESPHome build action. A tag such as `v0.2.0` additionally creates a GitHub Release and attaches factory and OTA firmware artifacts.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
