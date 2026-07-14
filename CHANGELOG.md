@@ -15,7 +15,10 @@ All notable changes to this project are documented here.
 - Automatic day/night brightness and temporary button wake-up.
 - Optional Home Assistant heartbeat package for stale-feed detection.
 - Per-device power profiles and separate rack, CPU and NAS temperature thresholds.
-- GitHub Actions compile validation and tagged firmware release workflow.
+- Pinned ESPHome pull-request and main-branch compile validation.
+- Weekly compatibility build against the latest ESPHome release.
+- GitHub Actions workflow linting and grouped Dependabot updates.
+- Source-only tagged release workflow with compile validation.
 - Hardware, entity and threshold documentation plus UI preview.
 - MIT license.
 
@@ -26,11 +29,14 @@ All notable changes to this project are documented here.
 - Buttons now support short and long presses.
 - Numeric HA sensors expire to `NaN` instead of displaying old values indefinitely.
 - Web UI is authenticated, local-only and cannot perform web OTA updates.
+- CI firmware artifacts expire after seven days and are explicitly validation-only.
 
 ### Security
 
 - Removed the fixed fallback access-point password from the firmware configuration.
 - Added secrets for fallback Wi-Fi and the web server.
+- CI and release validation now generate ephemeral random settings.
+- Public releases no longer attach preconfigured firmware.
 
 ## 0.1.0 - 2026-06-02
 

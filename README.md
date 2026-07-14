@@ -16,7 +16,7 @@ ESPHome rack-monitoring firmware for a **LilyGO T-Display-S3**. It presents Home
 - Diagnostic data: HA API state, heartbeat freshness, Wi-Fi RSSI, IP, uptime, heap, PSRAM, loop time, firmware version and reset reason
 - Authenticated local web UI, native encrypted API and password-protected native OTA
 - Modular ESPHome packages and shared C++ display helpers
-- GitHub Actions compile validation and tagged firmware releases
+- Pinned ESPHome builds, weekly compatibility checks, workflow linting and automated dependency updates
 
 ## Repository layout
 
@@ -30,7 +30,7 @@ packages/display.yaml               Fonts, graphs and all display pages
 includes/display_helpers.h          Shared validation, colors, bars and header helpers
 home-assistant/                     Optional HA heartbeat package
 docs/                               Pinout, entities and thresholds
-.github/workflows/                  Compile and release automation
+.github/workflows/                  Compile, compatibility, lint and release automation
 ```
 
 ## Installation
@@ -70,7 +70,11 @@ Every numeric Home Assistant input has a timeout filter. A timed-out value becom
 
 ## CI and releases
 
-Every push and pull request compiles the ESPHome configuration with the official ESPHome build action. A tag such as `v0.2.0` additionally creates a GitHub Release and attaches factory and OTA firmware artifacts.
+Pull requests compile with the pinned ESPHome version declared in `.github/workflows/esphome.yml`. Direct `main` pushes compile only when firmware-related files change. Validation artifacts expire after seven days and are not intended for installation.
+
+A scheduled workflow compiles with the latest ESPHome release every Monday. Workflow files are checked with `actionlint`, and Dependabot proposes grouped GitHub Actions updates each week.
+
+Tags such as `v0.2.0` are compiled for validation and create a source-only GitHub Release. Prebuilt public firmware is intentionally not attached because each installation requires its own configuration.
 
 ## License
 
