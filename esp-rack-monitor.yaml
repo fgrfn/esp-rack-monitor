@@ -7,7 +7,7 @@
 substitutions:
   device_name: esp-rack-monitor
   friendly_name: ESP Rack Monitor
-  project_version: "0.2.1"
+  project_version: "0.2.2"
 
   # Remote implementation version. Use a release tag for a fixed version.
   rack_monitor_library_ref: main
@@ -91,11 +91,11 @@ substitutions:
   power_jetkvm_critical: "18"
   power_jetkvm_max: "25"
 
-  # Temperature thresholds
-  temp_rack_warn: "30"
-  temp_rack_critical: "35"
+  # Temperature thresholds. 35 °C rack air is a warning, not yet critical.
+  temp_rack_warn: "35"
+  temp_rack_critical: "40"
   temp_rack_graph_min: "15"
-  temp_rack_graph_max: "40"
+  temp_rack_graph_max: "45"
   temp_cpu_warn: "70"
   temp_cpu_critical: "85"
   temp_nas_warn: "55"
@@ -118,5 +118,5 @@ packages:
       - packages/entities.yaml
       - packages/controls.yaml
       - packages/display.yaml
-    ref: main
+    ref: ${rack_monitor_library_ref}
     refresh: 1d
