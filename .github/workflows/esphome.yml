@@ -51,6 +51,16 @@ jobs:
             "ghcr.io/esphome/esphome:${ESPHOME_VERSION}" \
             compile esp-rack-monitor.yaml 2>&1 | tee esphome-build.log
 
+      - name: Stage firmware artifacts
+        if: success()
+        shell: bash
+        run: |
+          mkdir -p build-artifacts
+          find .esphome/build -type f \
+            \( -name 'firmware.bin' -o -name 'firmware.ota.bin' -o -name 'firmware.factory.bin' \) \
+            -exec cp -v '{}' build-artifacts/ \;
+          test -n "$(find build-artifacts -type f -name '*.bin' -print -quit)"
+
       - name: Upload build log
         if: always()
         uses: actions/upload-artifact@v7
@@ -65,8 +75,6 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: esp-rack-monitor-firmware
-          path: |
-            .esphome/build/**/firmware*.bin
-            .esphome/build/**/manifest.json
+          path: build-artifacts/
           if-no-files-found: error
           retention-days: 7
