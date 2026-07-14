@@ -1,0 +1,102 @@
+# ESP Rack Monitor - LilyGO T-Display-S3
+# Project configuration. Adjust entity IDs and thresholds below.
+
+substitutions:
+  device_name: esp-rack-monitor
+  friendly_name: ESP Rack Monitor
+  project_version: "0.2.0"
+
+  # Display behavior
+  rotation_interval: 12s
+  display_update_interval: 2s
+  sensor_stale_timeout: 30min
+  heartbeat_timeout: 3min
+  day_brightness: "100"
+  night_brightness: "12"
+  night_start_hour: "23"
+  night_end_hour: "7"
+  wake_duration: 45s
+
+  # Home Assistant entities: power
+  entity_power_total: sensor.homelab_rack_power
+  entity_power_unraid: sensor.unraid_tower_power
+  entity_power_proxmox: sensor.proxmox_power
+  entity_power_nas: sensor.ugreen_dh2300_nas_power
+  entity_power_jetkvm_modem: sensor.jetkvm_modem_power
+
+  # Home Assistant entities: temperature
+  entity_temp_rack: sensor.rack_temperatursensor_temperature
+  entity_temp_unraid: sensor.unraid_cpu_temp
+  entity_temp_proxmox: sensor.proxmox_cpu_temp
+  entity_temp_nas: sensor.nas_temperature
+
+  # Home Assistant entities: compute
+  entity_cpu_unraid: sensor.unraid_cpu_usage
+  entity_ram_unraid: sensor.unraid_ram_usage
+  entity_disk_unraid: sensor.unraid_disk_usage
+  entity_cpu_proxmox: sensor.pve_cpu_auslastung
+  entity_ram_proxmox: sensor.proxmox_ram_usage
+  entity_disk_proxmox: sensor.proxmox_disk_usage
+  entity_cpu_nas: sensor.nas_cpu_usage
+  entity_ram_nas: sensor.nas_ram_usage
+  entity_disk_nas: sensor.nas_disk_usage
+
+  # Home Assistant entities: costs and freshness
+  entity_electricity_price: sensor.steingasse_63_aktueller_strompreis
+  electricity_price_divisor: "1.0"   # 1.0 for EUR/kWh, 100.0 for ct/kWh
+  entity_rack_energy_today: sensor.homelab_rack_energy_today
+  entity_heartbeat: sensor.esp_rack_monitor_heartbeat
+
+  # Optional host availability binary sensors. Missing entities are ignored.
+  entity_unraid_online: binary_sensor.unraid_online
+  entity_proxmox_online: binary_sensor.proxmox_online
+  entity_nas_online: binary_sensor.nas_online
+
+  # Total rack power thresholds and graph scale
+  power_total_low: "100"
+  power_total_warn: "140"
+  power_total_critical: "200"
+  power_total_max: "250"
+
+  # Per-device power thresholds and scales
+  power_unraid_low: "70"
+  power_unraid_warn: "110"
+  power_unraid_critical: "150"
+  power_unraid_max: "190"
+  power_proxmox_low: "20"
+  power_proxmox_warn: "40"
+  power_proxmox_critical: "60"
+  power_proxmox_max: "80"
+  power_nas_low: "8"
+  power_nas_warn: "18"
+  power_nas_critical: "28"
+  power_nas_max: "40"
+  power_jetkvm_low: "5"
+  power_jetkvm_warn: "12"
+  power_jetkvm_critical: "18"
+  power_jetkvm_max: "25"
+
+  # Temperature thresholds
+  temp_rack_warn: "30"
+  temp_rack_critical: "35"
+  temp_rack_graph_min: "15"
+  temp_rack_graph_max: "40"
+  temp_cpu_warn: "70"
+  temp_cpu_critical: "85"
+  temp_nas_warn: "55"
+  temp_nas_critical: "70"
+
+  # Utilization thresholds
+  cpu_warn: "75"
+  cpu_critical: "90"
+  ram_warn: "80"
+  ram_critical: "92"
+  disk_warn: "80"
+  disk_critical: "90"
+
+packages:
+  base: !include packages/base.yaml
+  connectivity: !include packages/connectivity.yaml
+  entities: !include packages/entities.yaml
+  controls: !include packages/controls.yaml
+  display: !include packages/display.yaml
