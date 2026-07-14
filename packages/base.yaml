@@ -1,0 +1,33 @@
+esphome:
+  name: ${device_name}
+  friendly_name: ${friendly_name}
+  comment: "Rack monitoring display for LilyGO T-Display-S3"
+  min_version: 2026.6.0
+  project:
+    name: "fgrfn.esp_rack_monitor"
+    version: ${project_version}
+  includes:
+    - ../includes/display_helpers.h
+  on_boot:
+    - priority: -100
+      then:
+        - script.execute: show_current_page
+        - script.execute: apply_backlight
+        - component.update: main_display
+
+esp32:
+  board: esp32-s3-devkitc-1
+  variant: esp32s3
+  flash_size: 16MB
+  framework:
+    type: esp-idf
+
+psram:
+  mode: octal
+  speed: 80MHz
+
+logger:
+  level: INFO
+
+debug:
+  update_interval: 60s

@@ -1,572 +1,102 @@
-# ================================================================
-#  ESP RACK MONITOR – LILYGO T-Display-S3
-#  ESPHome Config
-#  Basis: deine aktuelle Version
-#  Änderungen:
-#   - CPU & RAM Seite jetzt mit 3 Spalten: Unraid / Proxmox / NAS
-#   - je System zusätzlich Speicherplatz/DISK in %
-#   - Stromverbrauch-Seite: Unraid / Proxmox / NAS / JetKVM+Modem
-#   - Temperatur-Seite optisch neu als 2x2-Karten
-#   - Button-Hinweise links oben/unten passend zur Display-Position
-#   - Temperatur- und Stromwerte farbig abhängig von der Höhe
-#   - Verbrauchsschwellen: <100 / 100-139 / 140-199 / ab 200 W
-# ================================================================
+# ESP Rack Monitor - LilyGO T-Display-S3
+# Project configuration. Adjust entity IDs and thresholds below.
 
 substitutions:
   device_name: esp-rack-monitor
   friendly_name: ESP Rack Monitor
-
-esphome:
-  name: ${device_name}
-  friendly_name: ${friendly_name}
-  on_boot:
-    priority: 700
-    then:
-      - lambda: |-
-          id(auto_rotate) = true;
-      - light.turn_on:
-          id: display_backlight
-          brightness: 100%
-
-esp32:
-  board: esp32-s3-devkitc-1
-  variant: esp32s3
-  flash_size: 16MB
-  framework:
-    type: esp-idf
-
-psram:
-  mode: octal
-  speed: 80MHz
-
-# ── Konnektivität ──────────────────────────────────────────────
-wifi:
-  ssid: !secret wifi_ssid
-  password: !secret wifi_password
-  ap:
-    ssid: "Rack-Display Fallback"
-    password: "rackdisplay"
-
-captive_portal:
-
-api:
-  encryption:
-    key: !secret api_encryption_key
-
-ota:
-  - platform: esphome
-    password: !secret ota_password
-
-logger:
-  level: INFO
-
-web_server:
-  port: 80
-
-# ── Backlight ──────────────────────────────────────────────────
-output:
-  - platform: ledc
-    pin: GPIO38
-    id: backlight_output
-    frequency: 2000Hz
-
-light:
-  - platform: monochromatic
-    output: backlight_output
-    name: "ESP Rack Monitor Backlight"
-    id: display_backlight
-    restore_mode: ALWAYS_ON
-    default_transition_length: 0s
-
-# ── Uhrzeit via Home Assistant ─────────────────────────────────
-time:
-  - platform: homeassistant
-    id: ha_time
-
-# ── Home Assistant Sensoren ────────────────────────────────────
-#
-# Wichtig:
-# ESPHome kann hier nur numerische HA-States übernehmen.
-# Wenn eine Entität in HA z. B. "unknown", "unavailable" oder Text liefert,
-# zeigt das Display "--".
-sensor:
-
-  # --- Stromverbrauch -------------------------------------------
-  - platform: homeassistant
-    id: power_total
-    entity_id: sensor.homelab_rack_power
-
-  - platform: homeassistant
-    id: power_unraid
-    entity_id: sensor.unraid_tower_power
-
-  - platform: homeassistant
-    id: power_proxmox
-    entity_id: sensor.proxmox_power              # ← ANPASSEN
-
-  - platform: homeassistant
-    id: power_nas
-    entity_id: sensor.ugreen_dh2300_nas_power
-
-  - platform: homeassistant
-    id: power_jetkvm_modem
-    entity_id: sensor.jetkvm_modem_power         # ← ANPASSEN
-
-  # --- Rack-Temperatursensor ------------------------------------
-  - platform: homeassistant
-    id: temp_rack
-    entity_id: sensor.rack_temperatursensor_temperature
-
-  # --- Gerätetemperaturen ---------------------------------------
-  - platform: homeassistant
-    id: temp_unraid
-    entity_id: sensor.unraid_cpu_temp            # ← ANPASSEN falls anders
-
-  - platform: homeassistant
-    id: temp_proxmox
-    entity_id: sensor.proxmox_cpu_temp           # ← ANPASSEN falls anders
-
-  - platform: homeassistant
-    id: temp_nas
-    entity_id: sensor.nas_temperature            # ← ANPASSEN falls anders
-
-  # --- CPU & RAM ------------------------------------------------
-  - platform: homeassistant
-    id: cpu_unraid
-    entity_id: sensor.unraid_cpu_usage           # ← ANPASSEN, erwartet 0–100
-
-  - platform: homeassistant
-    id: ram_unraid
-    entity_id: sensor.unraid_ram_usage           # ← ANPASSEN, erwartet 0–100
-
-  - platform: homeassistant
-    id: cpu_proxmox
-    entity_id: sensor.pve_cpu_auslastung         # ← ANPASSEN, erwartet 0–100
-
-  - platform: homeassistant
-    id: ram_proxmox
-    entity_id: sensor.proxmox_ram_usage          # ← ANPASSEN, erwartet 0–100
-
-  - platform: homeassistant
-    id: cpu_nas
-    entity_id: sensor.nas_cpu_usage              # ← ANPASSEN, erwartet 0–100
-
-  - platform: homeassistant
-    id: ram_nas
-    entity_id: sensor.nas_ram_usage              # ← ANPASSEN, erwartet 0–100
-
-  # --- Speicherplatz / Disk -------------------------------------
-  # Erwartet jeweils belegten Speicher in Prozent 0–100.
-  - platform: homeassistant
-    id: disk_unraid
-    entity_id: sensor.unraid_disk_usage          # ← ANPASSEN, erwartet 0–100
-
-  - platform: homeassistant
-    id: disk_proxmox
-    entity_id: sensor.proxmox_disk_usage         # ← ANPASSEN, erwartet 0–100
-
-  - platform: homeassistant
-    id: disk_nas
-    entity_id: sensor.nas_disk_usage             # ← ANPASSEN, erwartet 0–100
-
-  # --- Diagnose --------------------------------------------------
-  - platform: wifi_signal
-    name: "ESP Rack Monitor WLAN Signal"
-    update_interval: 60s
-
-# ── Globaler State ─────────────────────────────────────────────
-globals:
-  - id: auto_rotate
-    type: bool
-    restore_value: false
-    initial_value: 'true'
-
-switch:
-  - platform: template
-    name: "ESP Rack Monitor Auto-Rotation"
-    id: auto_rotate_switch
-    lambda: |-
-      return id(auto_rotate);
-    turn_on_action:
-      - lambda: |-
-          id(auto_rotate) = true;
-      - component.update: main_display
-    turn_off_action:
-      - lambda: |-
-          id(auto_rotate) = false;
-      - component.update: main_display
-
-# ── Auto-Rotation ──────────────────────────────────────────────
-interval:
-  - interval: 12s
-    then:
-      - if:
-          condition:
-            lambda: |-
-              return id(auto_rotate);
-          then:
-            - display.page.show_next: main_display
-            - component.update: main_display
-
-# ── Buttons ───────────────────────────────────────────────────
-binary_sensor:
-
-  - platform: gpio
-    pin:
-      number: GPIO0
-      inverted: true
-      mode: INPUT_PULLUP
-    name: "ESP Rack Monitor Button Next"
-    filters:
-      - delayed_on: 30ms
-    on_press:
-      - display.page.show_next: main_display
-      - component.update: main_display
-
-  - platform: gpio
-    pin:
-      number: GPIO14
-      inverted: true
-      mode: INPUT_PULLUP
-    name: "ESP Rack Monitor Button Auto"
-    filters:
-      - delayed_on: 30ms
-    on_press:
-      - lambda: |-
-          id(auto_rotate) = !id(auto_rotate);
-      - component.update: main_display
-
-# ── Fonts ──────────────────────────────────────────────────────
-font:
-  - file:
-      type: gfonts
-      family: Roboto
-      weight: 400
-    id: f_xs
-    size: 11
-
-  - file:
-      type: gfonts
-      family: Roboto
-      weight: 400
-    id: f_s
-    size: 14
-
-  - file:
-      type: gfonts
-      family: Roboto
-      weight: 500
-    id: f_m
-    size: 18
-
-  - file:
-      type: gfonts
-      family: Roboto
-      weight: 700
-    id: f_l
-    size: 30
-
-  - file:
-      type: gfonts
-      family: Roboto
-      weight: 700
-    id: f_xl
-    size: 44
-
-# ── Farben ─────────────────────────────────────────────────────
-color:
-  - id: c_bg
-    hex: "0D1117"
-  - id: c_text
-    hex: "E6EDF3"
-  - id: c_muted
-    hex: "6E7681"
-  - id: c_accent
-    hex: "58A6FF"
-  - id: c_ok
-    hex: "3FB950"
-  - id: c_warn
-    hex: "D29922"
-  - id: c_crit
-    hex: "F85149"
-  - id: c_strom
-    hex: "E8730A"
-
-# ── Display-Bus für LILYGO T-Display-S3 ────────────────────────
-spi:
-  type: octal
-  clk_pin: GPIO8
-  data_pins:
-    - GPIO39
-    - GPIO40
-    - GPIO41
-    - GPIO42
-    - number: GPIO45
-      ignore_strapping_warning: true
-    - number: GPIO46
-      ignore_strapping_warning: true
-    - GPIO47
-    - GPIO48
-
-# ── Display ────────────────────────────────────────────────────
-display:
-  - platform: mipi_spi
-    model: t-display-s3
-    id: main_display
-    rotation: 270
-    update_interval: 2s
-
-    pages:
-
-      # ============================================================
-      # SEITE 1 – OVERVIEW
-      # ============================================================
-      - id: page_overview
-        lambda: |-
-          it.fill(id(c_bg));
-
-          auto draw_buttons = [&]() {
-            it.print(4, 31, id(f_xs), id(c_muted), "B1>");
-            it.print(4, 154, id(f_xs), id(c_muted), id(auto_rotate) ? "B2A" : "B2-");
-          };
-
-          auto power_color = [&](float v) -> Color {
-            return v >= 200 ? id(c_crit) : (v >= 140 ? id(c_warn) : (v < 100 ? id(c_ok) : id(c_accent)));
-          };
-
-          auto power_status = [&](float v) -> const char* {
-            return v >= 200 ? "KRITISCH" : (v >= 140 ? "HOCH" : (v < 100 ? "NIEDRIG" : "NORMAL"));
-          };
-
-          auto temp_color = [&](float v) -> Color {
-            return v >= 70 ? id(c_crit) : (v >= 55 ? id(c_warn) : id(c_ok));
-          };
-
-          auto temp_status = [&](float v) -> const char* {
-            return v >= 70 ? "KRITISCH" : (v >= 55 ? "HOCH" : "NORMAL");
-          };
-
-          it.filled_rectangle(0, 0, 320, 28, id(c_accent));
-          it.print(8, 5, id(f_m), id(c_bg), "RACK MONITOR");
-          it.strftime(222, 5, id(f_m), id(c_bg), "%H:%M", id(ha_time).now());
-          if (id(auto_rotate)) it.print(292, 7, id(f_s), id(c_bg), "[A]");
-          draw_buttons();
-
-          // Linke Karte: Gesamtverbrauch
-          it.print(34, 36, id(f_xs), id(c_muted), "GESAMTVERBRAUCH");
-
-          Color pc = id(c_muted);
-          const char* ps = "NO DATA";
-          int pw_bar = 0;
-
-          if (id(power_total).has_state()) {
-            float pw = id(power_total).state;
-            pc = power_color(pw);
-            ps = power_status(pw);
-
-            it.printf(34, 52, id(f_xl), pc, "%.0f", pw);
-
-            // Skaliert bis ca. 220 W, passend zu deinen Schwellen.
-            pw_bar = (int)(pw / 220.0f * 120.0f);
-            if (pw_bar < 0) pw_bar = 0;
-            if (pw_bar > 120) pw_bar = 120;
-          } else {
-            it.print(34, 52, id(f_xl), id(c_muted), "--");
-          }
-
-          it.print(122, 68, id(f_s), id(c_muted), "W");
-          it.print(34, 96, id(f_xs), pc, ps);
-
-          it.rectangle(34, 125, 120, 4, id(c_muted));
-          it.filled_rectangle(34, 125, pw_bar, 4, pc);
-
-          it.line(168, 30, 168, 148, id(c_muted));
-
-          // Rechte Karte: Rack Temperatur
-          it.print(180, 36, id(f_xs), id(c_muted), "RACK TEMP");
-
-          if (id(temp_rack).has_state()) {
-            float tr = id(temp_rack).state;
-            Color tc = temp_color(tr);
-
-            it.printf(180, 52, id(f_xl), tc, "%.1f", tr);
-            it.printf(284, 55, id(f_s), tc, "°C");
-            it.print(180, 96, id(f_xs), tc, temp_status(tr));
-
-            int tr_bar = (int)(tr / 80.0f * 120.0f);
-            if (tr_bar < 0) tr_bar = 0;
-            if (tr_bar > 120) tr_bar = 120;
-            it.rectangle(180, 125, 120, 4, id(c_muted));
-            it.filled_rectangle(180, 125, tr_bar, 4, tc);
-          } else {
-            it.print(180, 52, id(f_xl), id(c_muted), "--");
-            it.print(284, 55, id(f_s), id(c_muted), "°C");
-            it.print(180, 96, id(f_xs), id(c_warn), "NO DATA");
-            it.rectangle(180, 125, 120, 4, id(c_muted));
-          }
-
-      # ============================================================
-      # SEITE 2 – STROM
-      # ============================================================
-      - id: page_power
-        lambda: |-
-          it.fill(id(c_bg));
-
-          auto draw_buttons = [&]() {
-            it.print(4, 31, id(f_xs), id(c_muted), "B1>");
-            it.print(4, 154, id(f_xs), id(c_muted), id(auto_rotate) ? "B2A" : "B2-");
-          };
-
-          auto power_color = [&](float v) -> Color {
-            return v >= 200 ? id(c_crit) : (v >= 140 ? id(c_warn) : (v < 100 ? id(c_ok) : id(c_accent)));
-          };
-
-          auto draw_power_card = [&](int x, int y, const char* label, bool ok, float v) {
-            it.print(x, y, id(f_xs), id(c_muted), label);
-
-            if (ok) {
-              Color pc = power_color(v);
-              it.printf(x, y + 16, id(f_l), pc, "%.0f", v);
-              it.print(x + 58, y + 26, id(f_s), id(c_muted), "W");
-
-              int bar = (int)(v / 220.0f * 112.0f);
-              if (bar < 0) bar = 0;
-              if (bar > 112) bar = 112;
-
-              it.rectangle(x, y + 50, 112, 5, id(c_muted));
-              it.filled_rectangle(x, y + 50, bar, 5, pc);
-            } else {
-              it.print(x, y + 16, id(f_l), id(c_muted), "--");
-              it.print(x + 58, y + 26, id(f_s), id(c_muted), "W");
-              it.rectangle(x, y + 50, 112, 5, id(c_muted));
-            }
-          };
-
-          it.filled_rectangle(0, 0, 320, 28, id(c_strom));
-          it.print(8, 5, id(f_m), id(c_bg), "STROMVERBRAUCH");
-          it.strftime(222, 5, id(f_m), id(c_bg), "%H:%M", id(ha_time).now());
-          if (id(auto_rotate)) it.print(292, 7, id(f_s), id(c_bg), "[A]");
-          draw_buttons();
-
-          draw_power_card(34, 38, "UNRAID", id(power_unraid).has_state(), id(power_unraid).state);
-          draw_power_card(174, 38, "PROXMOX", id(power_proxmox).has_state(), id(power_proxmox).state);
-          draw_power_card(34, 100, "NAS", id(power_nas).has_state(), id(power_nas).state);
-          draw_power_card(174, 100, "JETKVM+MODEM", id(power_jetkvm_modem).has_state(), id(power_jetkvm_modem).state);
-
-      # ============================================================
-      # SEITE 3 – TEMPERATUREN
-      # ============================================================
-      - id: page_temps
-        lambda: |-
-          it.fill(id(c_bg));
-
-          auto draw_buttons = [&]() {
-            it.print(4, 31, id(f_xs), id(c_muted), "B1>");
-            it.print(4, 154, id(f_xs), id(c_muted), id(auto_rotate) ? "B2A" : "B2-");
-          };
-
-          auto temp_color = [&](float v) -> Color {
-            return v >= 70 ? id(c_crit) : (v >= 55 ? id(c_warn) : id(c_ok));
-          };
-
-          auto temp_status = [&](float v) -> const char* {
-            return v >= 70 ? "KRITISCH" : (v >= 55 ? "HOCH" : "NORMAL");
-          };
-
-          auto draw_temp_card = [&](int x, int y, const char* label, bool ok, float v) {
-            it.print(x, y, id(f_xs), id(c_muted), label);
-
-            if (ok) {
-              Color tc = temp_color(v);
-              it.printf(x, y + 16, id(f_l), tc, "%.0f°C", v);
-              it.print(x, y + 46, id(f_xs), tc, temp_status(v));
-
-              int bar = (int)(v / 80.0f * 112.0f);
-              if (bar < 0) bar = 0;
-              if (bar > 112) bar = 112;
-
-              it.rectangle(x, y + 58, 112, 5, id(c_muted));
-              it.filled_rectangle(x, y + 58, bar, 5, tc);
-            } else {
-              it.print(x, y + 16, id(f_l), id(c_muted), "--°C");
-              it.print(x, y + 46, id(f_xs), id(c_warn), "NO DATA");
-              it.rectangle(x, y + 58, 112, 5, id(c_muted));
-            }
-          };
-
-          it.filled_rectangle(0, 0, 320, 28, id(c_crit));
-          it.print(8, 5, id(f_m), id(c_bg), "TEMPERATUREN");
-          it.strftime(222, 5, id(f_m), id(c_bg), "%H:%M", id(ha_time).now());
-          if (id(auto_rotate)) it.print(292, 7, id(f_s), id(c_bg), "[A]");
-          draw_buttons();
-
-          draw_temp_card(34, 36, "RACK", id(temp_rack).has_state(), id(temp_rack).state);
-          draw_temp_card(174, 36, "UNRAID", id(temp_unraid).has_state(), id(temp_unraid).state);
-          draw_temp_card(34, 102, "PROXMOX", id(temp_proxmox).has_state(), id(temp_proxmox).state);
-          draw_temp_card(174, 102, "NAS", id(temp_nas).has_state(), id(temp_nas).state);
-
-      # ============================================================
-      # SEITE 4 – CPU / RAM / SPEICHER
-      # ============================================================
-      - id: page_compute
-        lambda: |-
-          it.fill(id(c_bg));
-
-          auto draw_buttons = [&]() {
-            it.print(4, 31, id(f_xs), id(c_muted), "B1>");
-            it.print(4, 154, id(f_xs), id(c_muted), id(auto_rotate) ? "B2A" : "B2-");
-          };
-
-          auto percent_color = [&](float v) -> Color {
-            return v >= 90 ? id(c_crit) : (v >= 75 ? id(c_warn) : id(c_ok));
-          };
-
-          auto draw_metric = [&](int x, int y, const char* label, bool ok, float v) {
-            it.print(x, y, id(f_xs), id(c_muted), label);
-
-            if (ok) {
-              Color mc = percent_color(v);
-              it.printf(x + 36, y - 2, id(f_s), mc, "%.0f%%", v);
-
-              int bar = (int)(v / 100.0f * 76.0f);
-              if (bar < 0) bar = 0;
-              if (bar > 76) bar = 76;
-
-              it.rectangle(x, y + 16, 76, 5, id(c_muted));
-              it.filled_rectangle(x, y + 16, bar, 5, mc);
-            } else {
-              it.print(x + 36, y - 2, id(f_s), id(c_muted), "--%");
-              it.rectangle(x, y + 16, 76, 5, id(c_muted));
-            }
-          };
-
-          auto draw_system = [&](int x, const char* name,
-                                 bool cpu_ok, float cpu,
-                                 bool ram_ok, float ram,
-                                 bool disk_ok, float disk) {
-            it.print(x, 36, id(f_s), id(c_accent), name);
-            draw_metric(x, 58, "CPU", cpu_ok, cpu);
-            draw_metric(x, 92, "RAM", ram_ok, ram);
-            draw_metric(x, 126, "DISK", disk_ok, disk);
-          };
-
-          it.filled_rectangle(0, 0, 320, 28, id(c_ok));
-          it.print(8, 5, id(f_m), id(c_bg), "CPU / RAM / DISK");
-          it.strftime(222, 5, id(f_m), id(c_bg), "%H:%M", id(ha_time).now());
-          if (id(auto_rotate)) it.print(292, 7, id(f_s), id(c_bg), "[A]");
-          draw_buttons();
-
-          draw_system(34, "UNRAID",
-                      id(cpu_unraid).has_state(), id(cpu_unraid).state,
-                      id(ram_unraid).has_state(), id(ram_unraid).state,
-                      id(disk_unraid).has_state(), id(disk_unraid).state);
-
-          draw_system(128, "PROX",
-                      id(cpu_proxmox).has_state(), id(cpu_proxmox).state,
-                      id(ram_proxmox).has_state(), id(ram_proxmox).state,
-                      id(disk_proxmox).has_state(), id(disk_proxmox).state);
-
-          draw_system(226, "NAS",
-                      id(cpu_nas).has_state(), id(cpu_nas).state,
-                      id(ram_nas).has_state(), id(ram_nas).state,
-                      id(disk_nas).has_state(), id(disk_nas).state);
+  project_version: "0.2.0"
+
+  # Display behavior
+  rotation_interval: 12s
+  display_update_interval: 2s
+  sensor_stale_timeout: 30min
+  heartbeat_timeout: 3min
+  day_brightness: "100"
+  night_brightness: "12"
+  night_start_hour: "23"
+  night_end_hour: "7"
+  wake_duration: 45s
+
+  # Home Assistant entities: power
+  entity_power_total: sensor.homelab_rack_power
+  entity_power_unraid: sensor.unraid_tower_power
+  entity_power_proxmox: sensor.proxmox_power
+  entity_power_nas: sensor.ugreen_dh2300_nas_power
+  entity_power_jetkvm_modem: sensor.jetkvm_modem_power
+
+  # Home Assistant entities: temperature
+  entity_temp_rack: sensor.rack_temperatursensor_temperature
+  entity_temp_unraid: sensor.unraid_cpu_temp
+  entity_temp_proxmox: sensor.proxmox_cpu_temp
+  entity_temp_nas: sensor.nas_temperature
+
+  # Home Assistant entities: compute
+  entity_cpu_unraid: sensor.unraid_cpu_usage
+  entity_ram_unraid: sensor.unraid_ram_usage
+  entity_disk_unraid: sensor.unraid_disk_usage
+  entity_cpu_proxmox: sensor.pve_cpu_auslastung
+  entity_ram_proxmox: sensor.proxmox_ram_usage
+  entity_disk_proxmox: sensor.proxmox_disk_usage
+  entity_cpu_nas: sensor.nas_cpu_usage
+  entity_ram_nas: sensor.nas_ram_usage
+  entity_disk_nas: sensor.nas_disk_usage
+
+  # Home Assistant entities: costs and freshness
+  entity_electricity_price: sensor.steingasse_63_aktueller_strompreis
+  electricity_price_divisor: "1.0"   # 1.0 for EUR/kWh, 100.0 for ct/kWh
+  entity_rack_energy_today: sensor.homelab_rack_energy_today
+  entity_heartbeat: sensor.esp_rack_monitor_heartbeat
+
+  # Optional host availability binary sensors. Missing entities are ignored.
+  entity_unraid_online: binary_sensor.unraid_online
+  entity_proxmox_online: binary_sensor.proxmox_online
+  entity_nas_online: binary_sensor.nas_online
+
+  # Total rack power thresholds and graph scale
+  power_total_low: "100"
+  power_total_warn: "140"
+  power_total_critical: "200"
+  power_total_max: "250"
+
+  # Per-device power thresholds and scales
+  power_unraid_low: "70"
+  power_unraid_warn: "110"
+  power_unraid_critical: "150"
+  power_unraid_max: "190"
+  power_proxmox_low: "20"
+  power_proxmox_warn: "40"
+  power_proxmox_critical: "60"
+  power_proxmox_max: "80"
+  power_nas_low: "8"
+  power_nas_warn: "18"
+  power_nas_critical: "28"
+  power_nas_max: "40"
+  power_jetkvm_low: "5"
+  power_jetkvm_warn: "12"
+  power_jetkvm_critical: "18"
+  power_jetkvm_max: "25"
+
+  # Temperature thresholds
+  temp_rack_warn: "30"
+  temp_rack_critical: "35"
+  temp_rack_graph_min: "15"
+  temp_rack_graph_max: "40"
+  temp_cpu_warn: "70"
+  temp_cpu_critical: "85"
+  temp_nas_warn: "55"
+  temp_nas_critical: "70"
+
+  # Utilization thresholds
+  cpu_warn: "75"
+  cpu_critical: "90"
+  ram_warn: "80"
+  ram_critical: "92"
+  disk_warn: "80"
+  disk_critical: "90"
+
+packages:
+  base: !include ../packages/base.yaml
+  connectivity: !include ../packages/connectivity.yaml
+  entities: !include ../packages/entities.yaml
+  controls: !include ../packages/controls.yaml
+  display: !include ../packages/display.yaml
