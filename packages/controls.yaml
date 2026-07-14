@@ -1,7 +1,29 @@
+substitutions:
+  host_1_name: "UNRAID"
+  host_2_name: "PROXMOX"
+  host_3_name: "NAS"
+  host_4_name: "JETKVM+MODEM"
+  rotation_interval_seconds: "12"
+  manual_rotation_pause_seconds: "60"
+  day_brightness_default: "100"
+  night_brightness_default: "12"
+  night_start_hour_default: "23"
+  night_end_hour_default: "7"
+  boot_grace_seconds: "60"
+  alarm_trigger_delay_seconds: "20"
+  alarm_clear_delay_seconds: "60"
+  temp_hysteresis_default: "2"
+  power_hysteresis_default: "15"
+  utilization_hysteresis_default: "5"
+  entity_rack_cost_today: sensor.esp_rack_monitor_cost_today
+  entity_sun: sun.sun
+  power_graph_y_grid: "25"
+  temp_graph_y_grid: "5"
+
 globals:
   - id: current_page
     type: int
-    restore_value: false
+    restore_value: true
     initial_value: "0"
 
   - id: heartbeat_seen
@@ -9,15 +31,40 @@ globals:
     restore_value: false
     initial_value: "false"
 
-  - id: alarm_acknowledged
-    type: bool
+  - id: active_alarm_mask
+    type: uint32_t
     restore_value: false
-    initial_value: "false"
+    initial_value: "0"
+
+  - id: warning_mask
+    type: uint32_t
+    restore_value: false
+    initial_value: "0"
+
+  - id: acknowledged_alarm_mask
+    type: uint32_t
+    restore_value: false
+    initial_value: "0"
 
   - id: alarm_page_forced
     type: bool
     restore_value: false
     initial_value: "false"
+
+  - id: last_rotation_ms
+    type: uint32_t
+    restore_value: false
+    initial_value: "0"
+
+  - id: rotation_pause_until_ms
+    type: uint32_t
+    restore_value: false
+    initial_value: "0"
+
+  - id: alarm_test_until_ms
+    type: uint32_t
+    restore_value: false
+    initial_value: "0"
 
 switch:
   - platform: template
@@ -38,6 +85,435 @@ switch:
     turn_off_action:
       - script.execute: apply_backlight
 
+  - platform: template
+    id: sun_based_night_mode_switch
+    name: "${friendly_name} Nachtmodus nach Sonne"
+    icon: mdi:weather-sunset
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    entity_category: config
+    turn_on_action:
+      - script.execute: apply_backlight
+    turn_off_action:
+      - script.execute: apply_backlight
+
+  - platform: template
+    id: restore_last_page_switch
+    name: "${friendly_name} Letzte Seite wiederherstellen"
+    icon: mdi:backup-restore
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: config
+
+  - platform: template
+    id: skip_empty_pages_switch
+    name: "${friendly_name} Leere Seiten überspringen"
+    icon: mdi:page-next-outline
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: config
+
+  - platform: template
+    id: host_1_enabled
+    name: "${friendly_name} ${host_1_name} anzeigen"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: config
+
+  - platform: template
+    id: host_2_enabled
+    name: "${friendly_name} ${host_2_name} anzeigen"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: config
+
+  - platform: template
+    id: host_3_enabled
+    name: "${friendly_name} ${host_3_name} anzeigen"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: config
+
+  - platform: template
+    id: host_4_enabled
+    name: "${friendly_name} ${host_4_name} anzeigen"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: config
+
+  - platform: template
+    id: alarm_connection_enabled
+    name: "${friendly_name} Alarm Verbindung"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: config
+
+  - platform: template
+    id: alarm_host_offline_enabled
+    name: "${friendly_name} Alarm Hosts offline"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: config
+
+  - platform: template
+    id: alarm_power_enabled
+    name: "${friendly_name} Alarm Rack-Verbrauch"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: config
+
+  - platform: template
+    id: alarm_temperature_enabled
+    name: "${friendly_name} Alarm Temperaturen"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: config
+
+  - platform: template
+    id: alarm_utilization_enabled
+    name: "${friendly_name} Alarm Auslastung"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: config
+
+number:
+  - platform: template
+    id: rotation_interval_setting
+    name: "${friendly_name} Rotationsintervall"
+    unit_of_measurement: s
+    icon: mdi:timer-sync-outline
+    min_value: 5
+    max_value: 120
+    step: 1
+    initial_value: ${rotation_interval_seconds}
+    optimistic: true
+    restore_value: true
+    entity_category: config
+
+  - platform: template
+    id: manual_pause_setting
+    name: "${friendly_name} Pause nach Bedienung"
+    unit_of_measurement: s
+    icon: mdi:gesture-tap-hold
+    min_value: 0
+    max_value: 600
+    step: 5
+    initial_value: ${manual_rotation_pause_seconds}
+    optimistic: true
+    restore_value: true
+    entity_category: config
+
+  - platform: template
+    id: day_brightness_setting
+    name: "${friendly_name} Helligkeit Tag"
+    unit_of_measurement: "%"
+    icon: mdi:brightness-7
+    min_value: 5
+    max_value: 100
+    step: 1
+    initial_value: ${day_brightness_default}
+    optimistic: true
+    restore_value: true
+    entity_category: config
+    on_value:
+      then:
+        - script.execute: apply_backlight
+
+  - platform: template
+    id: night_brightness_setting
+    name: "${friendly_name} Helligkeit Nacht"
+    unit_of_measurement: "%"
+    icon: mdi:brightness-4
+    min_value: 0
+    max_value: 50
+    step: 1
+    initial_value: ${night_brightness_default}
+    optimistic: true
+    restore_value: true
+    entity_category: config
+    on_value:
+      then:
+        - script.execute: apply_backlight
+
+  - platform: template
+    id: night_start_setting
+    name: "${friendly_name} Nachtmodus Start"
+    unit_of_measurement: h
+    icon: mdi:clock-start
+    min_value: 0
+    max_value: 23
+    step: 1
+    initial_value: ${night_start_hour_default}
+    optimistic: true
+    restore_value: true
+    entity_category: config
+    on_value:
+      then:
+        - script.execute: apply_backlight
+
+  - platform: template
+    id: night_end_setting
+    name: "${friendly_name} Nachtmodus Ende"
+    unit_of_measurement: h
+    icon: mdi:clock-end
+    min_value: 0
+    max_value: 23
+    step: 1
+    initial_value: ${night_end_hour_default}
+    optimistic: true
+    restore_value: true
+    entity_category: config
+    on_value:
+      then:
+        - script.execute: apply_backlight
+
+  - platform: template
+    id: rack_temp_warn_setting
+    name: "${friendly_name} Rack Temperatur Warnung"
+    unit_of_measurement: "°C"
+    icon: mdi:thermometer-alert
+    min_value: 20
+    max_value: 60
+    step: 0.5
+    initial_value: ${temp_rack_warn}
+    optimistic: true
+    restore_value: true
+    entity_category: config
+
+  - platform: template
+    id: rack_temp_critical_setting
+    name: "${friendly_name} Rack Temperatur kritisch"
+    unit_of_measurement: "°C"
+    icon: mdi:thermometer-high
+    min_value: 25
+    max_value: 70
+    step: 0.5
+    initial_value: ${temp_rack_critical}
+    optimistic: true
+    restore_value: true
+    entity_category: config
+
+  - platform: template
+    id: rack_power_warn_setting
+    name: "${friendly_name} Rack Leistung Warnung"
+    unit_of_measurement: W
+    icon: mdi:flash-alert-outline
+    min_value: 20
+    max_value: 1000
+    step: 5
+    initial_value: ${power_total_warn}
+    optimistic: true
+    restore_value: true
+    entity_category: config
+
+  - platform: template
+    id: rack_power_critical_setting
+    name: "${friendly_name} Rack Leistung kritisch"
+    unit_of_measurement: W
+    icon: mdi:flash-alert
+    min_value: 30
+    max_value: 1200
+    step: 5
+    initial_value: ${power_total_critical}
+    optimistic: true
+    restore_value: true
+    entity_category: config
+
+  - platform: template
+    id: host_temp_warn_setting
+    name: "${friendly_name} Server Temperatur Warnung"
+    unit_of_measurement: "°C"
+    min_value: 40
+    max_value: 95
+    step: 1
+    initial_value: ${temp_cpu_warn}
+    optimistic: true
+    restore_value: true
+    entity_category: config
+
+  - platform: template
+    id: host_temp_critical_setting
+    name: "${friendly_name} Server Temperatur kritisch"
+    unit_of_measurement: "°C"
+    min_value: 50
+    max_value: 105
+    step: 1
+    initial_value: ${temp_cpu_critical}
+    optimistic: true
+    restore_value: true
+    entity_category: config
+
+  - platform: template
+    id: nas_temp_warn_setting
+    name: "${friendly_name} NAS Temperatur Warnung"
+    unit_of_measurement: "°C"
+    min_value: 30
+    max_value: 80
+    step: 1
+    initial_value: ${temp_nas_warn}
+    optimistic: true
+    restore_value: true
+    entity_category: config
+
+  - platform: template
+    id: nas_temp_critical_setting
+    name: "${friendly_name} NAS Temperatur kritisch"
+    unit_of_measurement: "°C"
+    min_value: 40
+    max_value: 90
+    step: 1
+    initial_value: ${temp_nas_critical}
+    optimistic: true
+    restore_value: true
+    entity_category: config
+
+  - platform: template
+    id: cpu_warn_setting
+    name: "${friendly_name} CPU Warnung"
+    unit_of_measurement: "%"
+    min_value: 20
+    max_value: 99
+    step: 1
+    initial_value: ${cpu_warn}
+    optimistic: true
+    restore_value: true
+    entity_category: config
+
+  - platform: template
+    id: cpu_critical_setting
+    name: "${friendly_name} CPU kritisch"
+    unit_of_measurement: "%"
+    min_value: 30
+    max_value: 100
+    step: 1
+    initial_value: ${cpu_critical}
+    optimistic: true
+    restore_value: true
+    entity_category: config
+
+  - platform: template
+    id: ram_warn_setting
+    name: "${friendly_name} RAM Warnung"
+    unit_of_measurement: "%"
+    min_value: 20
+    max_value: 99
+    step: 1
+    initial_value: ${ram_warn}
+    optimistic: true
+    restore_value: true
+    entity_category: config
+
+  - platform: template
+    id: ram_critical_setting
+    name: "${friendly_name} RAM kritisch"
+    unit_of_measurement: "%"
+    min_value: 30
+    max_value: 100
+    step: 1
+    initial_value: ${ram_critical}
+    optimistic: true
+    restore_value: true
+    entity_category: config
+
+  - platform: template
+    id: disk_warn_setting
+    name: "${friendly_name} Speicher Warnung"
+    unit_of_measurement: "%"
+    min_value: 20
+    max_value: 99
+    step: 1
+    initial_value: ${disk_warn}
+    optimistic: true
+    restore_value: true
+    entity_category: config
+
+  - platform: template
+    id: disk_critical_setting
+    name: "${friendly_name} Speicher kritisch"
+    unit_of_measurement: "%"
+    min_value: 30
+    max_value: 100
+    step: 1
+    initial_value: ${disk_critical}
+    optimistic: true
+    restore_value: true
+    entity_category: config
+
+  - platform: template
+    id: alarm_trigger_delay_setting
+    name: "${friendly_name} Alarmverzögerung"
+    unit_of_measurement: s
+    icon: mdi:timer-alert-outline
+    min_value: 0
+    max_value: 300
+    step: 5
+    initial_value: ${alarm_trigger_delay_seconds}
+    optimistic: true
+    restore_value: true
+    entity_category: config
+
+  - platform: template
+    id: alarm_clear_delay_setting
+    name: "${friendly_name} Alarm Rücksetzverzögerung"
+    unit_of_measurement: s
+    icon: mdi:timer-check-outline
+    min_value: 0
+    max_value: 600
+    step: 5
+    initial_value: ${alarm_clear_delay_seconds}
+    optimistic: true
+    restore_value: true
+    entity_category: config
+
+  - platform: template
+    id: boot_grace_setting
+    name: "${friendly_name} Startphase"
+    unit_of_measurement: s
+    icon: mdi:timer-sand
+    min_value: 0
+    max_value: 600
+    step: 5
+    initial_value: ${boot_grace_seconds}
+    optimistic: true
+    restore_value: true
+    entity_category: config
+
+  - platform: template
+    id: temp_hysteresis_setting
+    name: "${friendly_name} Temperatur Hysterese"
+    unit_of_measurement: "°C"
+    min_value: 0
+    max_value: 10
+    step: 0.5
+    initial_value: ${temp_hysteresis_default}
+    optimistic: true
+    restore_value: true
+    entity_category: config
+
+  - platform: template
+    id: power_hysteresis_setting
+    name: "${friendly_name} Leistung Hysterese"
+    unit_of_measurement: W
+    min_value: 0
+    max_value: 100
+    step: 5
+    initial_value: ${power_hysteresis_default}
+    optimistic: true
+    restore_value: true
+    entity_category: config
+
+  - platform: template
+    id: utilization_hysteresis_setting
+    name: "${friendly_name} Auslastung Hysterese"
+    unit_of_measurement: "%"
+    min_value: 0
+    max_value: 20
+    step: 1
+    initial_value: ${utilization_hysteresis_default}
+    optimistic: true
+    restore_value: true
+    entity_category: config
+
 select:
   - platform: template
     id: page_select
@@ -54,6 +530,7 @@ select:
       - "Trends"
       - "Kosten"
       - "Diagnose"
+      - "Test"
     set_action:
       - lambda: |-
           if (x == "Übersicht") id(current_page) = 0;
@@ -63,8 +540,27 @@ select:
           else if (x == "Trends") id(current_page) = 4;
           else if (x == "Kosten") id(current_page) = 5;
           else if (x == "Diagnose") id(current_page) = 6;
+          else id(current_page) = 7;
+      - script.execute: pause_rotation
       - script.execute: show_current_page
       - script.execute: wake_display
+
+  - platform: template
+    id: default_page_select
+    name: "${friendly_name} Startseite"
+    icon: mdi:home-outline
+    optimistic: true
+    restore_value: true
+    initial_option: "Übersicht"
+    options:
+      - "Übersicht"
+      - "Strom"
+      - "Temperaturen"
+      - "Systeme"
+      - "Trends"
+      - "Kosten"
+      - "Diagnose"
+    entity_category: config
 
 button:
   - platform: template
@@ -73,9 +569,20 @@ button:
     icon: mdi:check-decagram-outline
     on_press:
       - lambda: |-
-          id(alarm_acknowledged) = true;
+          id(acknowledged_alarm_mask) = id(active_alarm_mask);
           id(alarm_page_forced) = false;
       - script.execute: show_current_page
+      - script.execute: wake_display
+
+  - platform: template
+    id: test_alarm_button
+    name: "${friendly_name} Alarm testen"
+    icon: mdi:alarm-light-outline
+    entity_category: diagnostic
+    on_press:
+      - lambda: |-
+          id(alarm_test_until_ms) = millis() + 60000UL;
+          id(acknowledged_alarm_mask) &= ~rack_monitor::ALARM_TEST;
       - script.execute: wake_display
 
   - platform: restart
@@ -85,12 +592,30 @@ button:
     name: "${friendly_name} Sicherer Modus"
 
 script:
+  - id: initialize_runtime
+    mode: restart
+    then:
+      - lambda: |-
+          if (!id(restore_last_page_switch).state) {
+            const std::string page = id(default_page_select).state;
+            if (page == "Strom") id(current_page) = 1;
+            else if (page == "Temperaturen") id(current_page) = 2;
+            else if (page == "Systeme") id(current_page) = 3;
+            else if (page == "Trends") id(current_page) = 4;
+            else if (page == "Kosten") id(current_page) = 5;
+            else if (page == "Diagnose") id(current_page) = 6;
+            else id(current_page) = 0;
+          }
+          id(last_rotation_ms) = millis();
+      - script.execute: show_current_page
+      - script.execute: apply_backlight
+
   - id: show_current_page
     mode: restart
     then:
       - lambda: |-
-          int page = id(current_page) % 7;
-          if (page < 0) page += 7;
+          int page = id(current_page) % 8;
+          if (page < 0) page += 8;
           id(current_page) = page;
           switch (page) {
             case 0:
@@ -117,28 +642,45 @@ script:
               id(main_display).show_page(id(page_costs));
               id(page_select).publish_state("Kosten");
               break;
-            default:
+            case 6:
               id(main_display).show_page(id(page_diagnostics));
               id(page_select).publish_state("Diagnose");
               break;
+            default:
+              id(main_display).show_page(id(page_test));
+              id(page_select).publish_state("Test");
+              break;
           }
       - component.update: main_display
+
+  - id: pause_rotation
+    mode: restart
+    then:
+      - lambda: |-
+          const uint32_t pause_ms = static_cast<uint32_t>(id(manual_pause_setting).state * 1000.0f);
+          id(rotation_pause_until_ms) = pause_ms == 0 ? 0 : millis() + pause_ms;
+          id(last_rotation_ms) = millis();
 
   - id: apply_backlight
     mode: restart
     then:
       - lambda: |-
-          float brightness = ${day_brightness} / 100.0f;
+          float brightness = id(day_brightness_setting).state / 100.0f;
           const auto now = id(ha_time).now();
-          if (id(night_mode_switch).state && now.is_valid() &&
-              rack_monitor::in_night_window(now.hour, ${night_start_hour}, ${night_end_hour})) {
-            brightness = ${night_brightness} / 100.0f;
+          const bool sun_night = id(sun_based_night_mode_switch).state &&
+                                 id(sun_state).state == "below_horizon";
+          const bool clock_night = now.is_valid() &&
+                                   rack_monitor::in_night_window(now.hour,
+                                                               static_cast<int>(id(night_start_setting).state),
+                                                               static_cast<int>(id(night_end_setting).state));
+          if (id(night_mode_switch).state && (sun_night || (!id(sun_based_night_mode_switch).state && clock_night))) {
+            brightness = id(night_brightness_setting).state / 100.0f;
           }
           if (brightness <= 0.0f) {
             id(display_backlight).turn_off().perform();
           } else {
             auto call = id(display_backlight).turn_on();
-            call.set_brightness(brightness);
+            call.set_brightness(std::clamp(brightness, 0.0f, 1.0f));
             call.perform();
           }
 
@@ -147,38 +689,235 @@ script:
     then:
       - lambda: |-
           auto call = id(display_backlight).turn_on();
-          call.set_brightness(${day_brightness} / 100.0f);
+          call.set_brightness(std::clamp(id(day_brightness_setting).state / 100.0f, 0.05f, 1.0f));
           call.perform();
       - delay: ${wake_duration}
       - script.execute: apply_backlight
 
 interval:
-  - interval: ${rotation_interval}
-    then:
-      - if:
-          condition:
-            lambda: |-
-              return id(auto_rotate_switch).state && (!id(alarm_active).state || id(alarm_acknowledged));
-          then:
-            - lambda: |-
-                id(current_page) = (id(current_page) + 1) % 7;
-            - script.execute: show_current_page
-
-  - interval: 2s
+  - interval: 1s
     then:
       - lambda: |-
-          if (!id(alarm_active).state) {
-            if (id(alarm_page_forced)) {
-              id(alarm_page_forced) = false;
-              id(show_current_page).execute();
-            }
-            id(alarm_acknowledged) = false;
-            return;
+          const uint32_t now = millis();
+          uint32_t raw_alarm = 0;
+          uint32_t raw_warning = 0;
+          const uint32_t active_before = id(active_alarm_mask);
+          const bool grace_finished = (now / 1000UL) >= static_cast<uint32_t>(id(boot_grace_setting).state);
+
+          const auto critical = [&](float value, float limit, float hysteresis, uint32_t bit) {
+            if (!rack_monitor::valid(value)) return false;
+            const float effective = (active_before & bit) ? std::max(0.0f, limit - hysteresis) : limit;
+            return value >= effective;
+          };
+          const auto warning = [&](float value, float limit) {
+            return rack_monitor::valid(value) && value >= limit;
+          };
+
+          if (grace_finished && id(alarm_connection_enabled).state) {
+            if (!id(api_status).state) raw_alarm |= rack_monitor::ALARM_API_OFFLINE;
+            if (id(heartbeat_seen) && !rack_monitor::valid(id(data_heartbeat).state))
+              raw_alarm |= rack_monitor::ALARM_DATA_STALE;
           }
-          if (!id(alarm_acknowledged)) {
+
+          if (grace_finished && id(alarm_host_offline_enabled).state) {
+            if (id(host_1_enabled).state && id(unraid_online).has_state() && !id(unraid_online).state)
+              raw_alarm |= rack_monitor::ALARM_HOST1_OFFLINE;
+            if (id(host_2_enabled).state && id(proxmox_online).has_state() && !id(proxmox_online).state)
+              raw_alarm |= rack_monitor::ALARM_HOST2_OFFLINE;
+            if (id(host_3_enabled).state && id(nas_online).has_state() && !id(nas_online).state)
+              raw_alarm |= rack_monitor::ALARM_HOST3_OFFLINE;
+          }
+
+          if (id(alarm_power_enabled).state) {
+            if (critical(id(power_total).state, id(rack_power_critical_setting).state,
+                         id(power_hysteresis_setting).state, rack_monitor::ALARM_POWER_TOTAL))
+              raw_alarm |= rack_monitor::ALARM_POWER_TOTAL;
+            if (warning(id(power_total).state, id(rack_power_warn_setting).state))
+              raw_warning |= rack_monitor::ALARM_POWER_TOTAL;
+          }
+
+          if (id(alarm_temperature_enabled).state) {
+            if (critical(id(temp_rack).state, id(rack_temp_critical_setting).state,
+                         id(temp_hysteresis_setting).state, rack_monitor::ALARM_TEMP_RACK))
+              raw_alarm |= rack_monitor::ALARM_TEMP_RACK;
+            if (warning(id(temp_rack).state, id(rack_temp_warn_setting).state))
+              raw_warning |= rack_monitor::ALARM_TEMP_RACK;
+
+            if (id(host_1_enabled).state) {
+              if (critical(id(temp_unraid).state, id(host_temp_critical_setting).state,
+                           id(temp_hysteresis_setting).state, rack_monitor::ALARM_TEMP_HOST1))
+                raw_alarm |= rack_monitor::ALARM_TEMP_HOST1;
+              if (warning(id(temp_unraid).state, id(host_temp_warn_setting).state))
+                raw_warning |= rack_monitor::ALARM_TEMP_HOST1;
+            }
+            if (id(host_2_enabled).state) {
+              if (critical(id(temp_proxmox).state, id(host_temp_critical_setting).state,
+                           id(temp_hysteresis_setting).state, rack_monitor::ALARM_TEMP_HOST2))
+                raw_alarm |= rack_monitor::ALARM_TEMP_HOST2;
+              if (warning(id(temp_proxmox).state, id(host_temp_warn_setting).state))
+                raw_warning |= rack_monitor::ALARM_TEMP_HOST2;
+            }
+            if (id(host_3_enabled).state) {
+              if (critical(id(temp_nas).state, id(nas_temp_critical_setting).state,
+                           id(temp_hysteresis_setting).state, rack_monitor::ALARM_TEMP_HOST3))
+                raw_alarm |= rack_monitor::ALARM_TEMP_HOST3;
+              if (warning(id(temp_nas).state, id(nas_temp_warn_setting).state))
+                raw_warning |= rack_monitor::ALARM_TEMP_HOST3;
+            }
+          }
+
+          if (id(alarm_utilization_enabled).state) {
+            const float util_h = id(utilization_hysteresis_setting).state;
+            if (id(host_1_enabled).state) {
+              if (critical(id(cpu_unraid).state, id(cpu_critical_setting).state, util_h, rack_monitor::ALARM_CPU_HOST1))
+                raw_alarm |= rack_monitor::ALARM_CPU_HOST1;
+              if (warning(id(cpu_unraid).state, id(cpu_warn_setting).state))
+                raw_warning |= rack_monitor::ALARM_CPU_HOST1;
+            }
+            if (id(host_2_enabled).state) {
+              if (critical(id(cpu_proxmox).state, id(cpu_critical_setting).state, util_h, rack_monitor::ALARM_CPU_HOST2))
+                raw_alarm |= rack_monitor::ALARM_CPU_HOST2;
+              if (warning(id(cpu_proxmox).state, id(cpu_warn_setting).state))
+                raw_warning |= rack_monitor::ALARM_CPU_HOST2;
+            }
+            if (id(host_3_enabled).state) {
+              if (critical(id(cpu_nas).state, id(cpu_critical_setting).state, util_h, rack_monitor::ALARM_CPU_HOST3))
+                raw_alarm |= rack_monitor::ALARM_CPU_HOST3;
+              if (warning(id(cpu_nas).state, id(cpu_warn_setting).state))
+                raw_warning |= rack_monitor::ALARM_CPU_HOST3;
+            }
+
+            const bool ram_critical =
+              (id(host_1_enabled).state && critical(id(ram_unraid).state, id(ram_critical_setting).state, util_h, rack_monitor::ALARM_RAM_ANY)) ||
+              (id(host_2_enabled).state && critical(id(ram_proxmox).state, id(ram_critical_setting).state, util_h, rack_monitor::ALARM_RAM_ANY)) ||
+              (id(host_3_enabled).state && critical(id(ram_nas).state, id(ram_critical_setting).state, util_h, rack_monitor::ALARM_RAM_ANY));
+            const bool ram_warning =
+              (id(host_1_enabled).state && warning(id(ram_unraid).state, id(ram_warn_setting).state)) ||
+              (id(host_2_enabled).state && warning(id(ram_proxmox).state, id(ram_warn_setting).state)) ||
+              (id(host_3_enabled).state && warning(id(ram_nas).state, id(ram_warn_setting).state));
+            if (ram_critical) raw_alarm |= rack_monitor::ALARM_RAM_ANY;
+            if (ram_warning) raw_warning |= rack_monitor::ALARM_RAM_ANY;
+
+            const bool disk_critical =
+              (id(host_1_enabled).state && critical(id(disk_unraid).state, id(disk_critical_setting).state, util_h, rack_monitor::ALARM_DISK_ANY)) ||
+              (id(host_2_enabled).state && critical(id(disk_proxmox).state, id(disk_critical_setting).state, util_h, rack_monitor::ALARM_DISK_ANY)) ||
+              (id(host_3_enabled).state && critical(id(disk_nas).state, id(disk_critical_setting).state, util_h, rack_monitor::ALARM_DISK_ANY));
+            const bool disk_warning =
+              (id(host_1_enabled).state && warning(id(disk_unraid).state, id(disk_warn_setting).state)) ||
+              (id(host_2_enabled).state && warning(id(disk_proxmox).state, id(disk_warn_setting).state)) ||
+              (id(host_3_enabled).state && warning(id(disk_nas).state, id(disk_warn_setting).state));
+            if (disk_critical) raw_alarm |= rack_monitor::ALARM_DISK_ANY;
+            if (disk_warning) raw_warning |= rack_monitor::ALARM_DISK_ANY;
+          }
+
+          if (rack_monitor::before_deadline(now, id(alarm_test_until_ms)))
+            raw_alarm |= rack_monitor::ALARM_TEST;
+
+          const std::string configured_ref = "${rack_monitor_library_ref}";
+          const std::string expected_ref = "v${project_version}";
+          if (configured_ref != "main" && configured_ref != "beta" && configured_ref != expected_ref)
+            raw_warning |= rack_monitor::WARNING_CONFIG_MISMATCH;
+
+          raw_warning |= raw_alarm;
+
+          static uint32_t pending_since[17] = {};
+          static uint32_t clearing_since[17] = {};
+          uint32_t active = active_before;
+          const uint32_t trigger_ms = static_cast<uint32_t>(id(alarm_trigger_delay_setting).state * 1000.0f);
+          const uint32_t clear_ms = static_cast<uint32_t>(id(alarm_clear_delay_setting).state * 1000.0f);
+
+          for (int i = 0; i < 17; ++i) {
+            const uint32_t bit = 1u << i;
+            const bool raw = (raw_alarm & bit) != 0;
+            const bool is_active = (active & bit) != 0;
+            const uint32_t bit_trigger_ms = bit == rack_monitor::ALARM_TEST ? 0 : trigger_ms;
+            const uint32_t bit_clear_ms = bit == rack_monitor::ALARM_TEST ? 0 : clear_ms;
+
+            if (raw) {
+              clearing_since[i] = 0;
+              if (!is_active) {
+                if (pending_since[i] == 0) pending_since[i] = now == 0 ? 1 : now;
+                if (bit_trigger_ms == 0 || rack_monitor::elapsed(now, pending_since[i], bit_trigger_ms)) {
+                  active |= bit;
+                  pending_since[i] = 0;
+                }
+              }
+            } else {
+              pending_since[i] = 0;
+              if (is_active) {
+                if (clearing_since[i] == 0) clearing_since[i] = now == 0 ? 1 : now;
+                if (bit_clear_ms == 0 || rack_monitor::elapsed(now, clearing_since[i], bit_clear_ms)) {
+                  active &= ~bit;
+                  clearing_since[i] = 0;
+                }
+              }
+            }
+          }
+
+          const uint32_t gained = active & ~active_before;
+          id(active_alarm_mask) = active;
+          id(warning_mask) = raw_warning & ~active;
+          id(acknowledged_alarm_mask) &= active;
+
+          if (gained != 0) {
+            id(alarm_page_forced) = true;
+            id(wake_display).execute();
+          }
+          if (active == 0) {
+            id(alarm_page_forced) = false;
+            id(acknowledged_alarm_mask) = 0;
+          }
+
+          const uint32_t unacknowledged = active & ~id(acknowledged_alarm_mask);
+          if (unacknowledged != 0) {
             id(alarm_page_forced) = true;
             id(main_display).show_page(id(page_alarm));
+          } else if (id(alarm_page_forced)) {
+            id(alarm_page_forced) = false;
+            id(show_current_page).execute();
+          }
+
+          if (active != active_before || gained != 0)
             id(main_display).update();
+
+          const bool paused = rack_monitor::before_deadline(now, id(rotation_pause_until_ms));
+          if (id(auto_rotate_switch).state && !paused && unacknowledged == 0) {
+            const uint32_t interval_ms = static_cast<uint32_t>(id(rotation_interval_setting).state * 1000.0f);
+            if (interval_ms > 0 && static_cast<uint32_t>(now - id(last_rotation_ms)) >= interval_ms) {
+              const auto page_available = [&](int page) {
+                if (!id(skip_empty_pages_switch).state) return true;
+                if (page == 1)
+                  return (id(host_1_enabled).state && rack_monitor::valid(id(power_unraid).state)) ||
+                         (id(host_2_enabled).state && rack_monitor::valid(id(power_proxmox).state)) ||
+                         (id(host_3_enabled).state && rack_monitor::valid(id(power_nas).state)) ||
+                         (id(host_4_enabled).state && rack_monitor::valid(id(power_jetkvm_modem).state));
+                if (page == 2)
+                  return rack_monitor::valid(id(temp_rack).state) ||
+                         (id(host_1_enabled).state && rack_monitor::valid(id(temp_unraid).state)) ||
+                         (id(host_2_enabled).state && rack_monitor::valid(id(temp_proxmox).state)) ||
+                         (id(host_3_enabled).state && rack_monitor::valid(id(temp_nas).state));
+                if (page == 3)
+                  return (id(host_1_enabled).state && (rack_monitor::valid(id(cpu_unraid).state) || rack_monitor::valid(id(ram_unraid).state) || rack_monitor::valid(id(disk_unraid).state))) ||
+                         (id(host_2_enabled).state && (rack_monitor::valid(id(cpu_proxmox).state) || rack_monitor::valid(id(ram_proxmox).state) || rack_monitor::valid(id(disk_proxmox).state))) ||
+                         (id(host_3_enabled).state && (rack_monitor::valid(id(cpu_nas).state) || rack_monitor::valid(id(ram_nas).state) || rack_monitor::valid(id(disk_nas).state)));
+                if (page == 4)
+                  return rack_monitor::valid(id(power_total).state) || rack_monitor::valid(id(temp_rack).state);
+                if (page == 5)
+                  return rack_monitor::valid(id(electricity_price).state) ||
+                         rack_monitor::valid(id(rack_cost_hour).state) ||
+                         rack_monitor::valid(id(rack_cost_today_actual).state);
+                return true;
+              };
+
+              int next = id(current_page);
+              for (int attempt = 0; attempt < 7; ++attempt) {
+                next = (next + 1) % 7;
+                if (page_available(next)) break;
+              }
+              id(current_page) = next;
+              id(last_rotation_ms) = now;
+              id(show_current_page).execute();
+            }
           }
 
   - interval: 60s
@@ -201,21 +940,42 @@ binary_sensor:
         max_length: 600ms
         then:
           - script.execute: wake_display
+          - script.execute: pause_rotation
           - if:
               condition:
-                lambda: return !id(alarm_active).state || id(alarm_acknowledged);
+                lambda: return (id(active_alarm_mask) & ~id(acknowledged_alarm_mask)) == 0;
               then:
-                - lambda: id(current_page) = (id(current_page) + 1) % 7;
+                - lambda: |-
+                    int next = id(current_page);
+                    for (int attempt = 0; attempt < 8; ++attempt) {
+                      next = (next + 1) % 8;
+                      if (!id(skip_empty_pages_switch).state || next == 0 || next == 6 || next == 7) break;
+                      if (next == 1 && ((id(host_1_enabled).state && rack_monitor::valid(id(power_unraid).state)) ||
+                                        (id(host_2_enabled).state && rack_monitor::valid(id(power_proxmox).state)) ||
+                                        (id(host_3_enabled).state && rack_monitor::valid(id(power_nas).state)) ||
+                                        (id(host_4_enabled).state && rack_monitor::valid(id(power_jetkvm_modem).state)))) break;
+                      if (next == 2 && (rack_monitor::valid(id(temp_rack).state) ||
+                                        (id(host_1_enabled).state && rack_monitor::valid(id(temp_unraid).state)) ||
+                                        (id(host_2_enabled).state && rack_monitor::valid(id(temp_proxmox).state)) ||
+                                        (id(host_3_enabled).state && rack_monitor::valid(id(temp_nas).state)))) break;
+                      if (next == 3 && ((id(host_1_enabled).state && rack_monitor::valid(id(cpu_unraid).state)) ||
+                                        (id(host_2_enabled).state && rack_monitor::valid(id(cpu_proxmox).state)) ||
+                                        (id(host_3_enabled).state && rack_monitor::valid(id(cpu_nas).state)))) break;
+                      if (next == 4 && (rack_monitor::valid(id(power_total).state) || rack_monitor::valid(id(temp_rack).state))) break;
+                      if (next == 5 && (rack_monitor::valid(id(electricity_price).state) || rack_monitor::valid(id(rack_cost_hour).state))) break;
+                    }
+                    id(current_page) = next;
                 - script.execute: show_current_page
       - min_length: 800ms
         max_length: 10s
         then:
           - script.execute: wake_display
+          - script.execute: pause_rotation
           - if:
               condition:
-                lambda: return !id(alarm_active).state || id(alarm_acknowledged);
+                lambda: return (id(active_alarm_mask) & ~id(acknowledged_alarm_mask)) == 0;
               then:
-                - lambda: id(current_page) = (id(current_page) + 6) % 7;
+                - lambda: id(current_page) = (id(current_page) + 7) % 8;
                 - script.execute: show_current_page
 
   - platform: gpio
@@ -233,8 +993,13 @@ binary_sensor:
         max_length: 700ms
         then:
           - script.execute: wake_display
-          - switch.toggle: auto_rotate_switch
-          - component.update: main_display
+          - script.execute: pause_rotation
+          - if:
+              condition:
+                lambda: return id(active_alarm_mask) == 0;
+              then:
+                - switch.toggle: auto_rotate_switch
+                - component.update: main_display
     on_multi_click:
       - timing:
           - ON for at least 800ms
