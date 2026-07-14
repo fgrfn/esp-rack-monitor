@@ -1,4 +1,4 @@
-name: Firmware release
+name: Source release
 
 on:
   push:
@@ -8,40 +8,45 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: source-release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  ESPHOME_VERSION: "2026.6.4"
+
 jobs:
-  release:
+  validate:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Create release secrets
+      - name: Create ephemeral validation secrets
         shell: bash
-        run: |
-          cat > configs/secrets.yaml <<'SECRETS'
-          wifi_ssid: "configure-after-flash"
-          wifi_password: "configure-after-flash"
-          fallback_ap_password: "change-this-fallback-password"
-          api_encryption_key: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-          ota_password: "change-this-ota-password"
-          web_server_username: "rackmonitor"
-          web_server_password: "change-this-web-password"
-          SECRETS
+        run: bash .github/scripts/create-ci-secrets.sh
 
-      - name: Compile firmware
-        id: esphome-build
+      - name: Compile tagged source
         uses: esphome/build-action@v7
         with:
           yaml-file: configs/esp-rack-monitor.yaml
-          version: latest
-          release-summary: "ESP Rack Monitor ${{ github.ref_name }}"
-          release-url: "${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ github.ref_name }}"
-          complete-manifest: true
+          version: ${{ env.ESPHOME_VERSION }}
 
-      - name: Create release and upload firmware
+  release:
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Create source release
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
-          gh release create "${GITHUB_REF_NAME}" --generate-notes --title "ESP Rack Monitor ${GITHUB_REF_NAME}"
-          gh release upload "${GITHUB_REF_NAME}" "${{ steps.esphome-build.outputs.name }}"/* --clobber
+          gh release create "${GITHUB_REF_NAME}" \
+            --verify-tag \
+            --generate-notes \
+            --title "ESP Rack Monitor ${GITHUB_REF_NAME}"
