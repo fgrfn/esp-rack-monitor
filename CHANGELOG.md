@@ -29,7 +29,15 @@ All notable changes to this project are documented here.
 - Buttons now support short and long presses.
 - Numeric HA sensors expire to `NaN` instead of displaying old values indefinitely.
 - Web UI is authenticated, local-only and cannot perform web OTA updates.
+- The canonical ESPHome entrypoint now lives at `esp-rack-monitor.yaml` in the repository root.
+- Package, helper include and secrets paths now match the standard `/config/esphome` Home Assistant layout.
+- CI builds the same root configuration used by the ESPHome dashboard.
 - CI firmware artifacts expire after seven days and are explicitly validation-only.
+
+### Fixed
+
+- Fixed package lookup errors caused by `../packages/...` resolving outside `/config/esphome`.
+- Fixed the helper include path that previously resolved outside the ESPHome configuration directory.
 
 ### Security
 

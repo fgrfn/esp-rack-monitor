@@ -21,13 +21,14 @@ ESPHome rack-monitoring firmware for a **LilyGO T-Display-S3**. It presents Home
 ## Repository layout
 
 ```text
-configs/esp-rack-monitor.yaml       Main substitutions and package imports
+esp-rack-monitor.yaml               Main substitutions and package imports
 packages/base.yaml                  Board, project and diagnostics base
 packages/connectivity.yaml          Wi-Fi, API, OTA and protected web UI
 packages/entities.yaml              HA inputs, local diagnostics and alarms
 packages/controls.yaml              Page, rotation, buttons and night mode
 packages/display.yaml               Fonts, graphs and all display pages
 includes/display_helpers.h          Shared validation, colors, bars and header helpers
+secrets.example.yaml                Required secret keys without real credentials
 home-assistant/                     Optional HA heartbeat package
 docs/                               Pinout, entities and thresholds
 .github/workflows/                  Compile, compatibility, lint and release automation
@@ -35,13 +36,34 @@ docs/                               Pinout, entities and thresholds
 
 ## Installation
 
-1. Copy or clone the complete repository into the ESPHome configuration directory. The relative `packages` and `includes` paths must remain intact.
-2. Copy `secrets.example.yaml` to `configs/secrets.yaml`, or add the listed values to the secrets file used by your ESPHome dashboard.
-3. Edit the substitutions in `configs/esp-rack-monitor.yaml`, especially entity IDs and thresholds.
-4. Optionally install `home-assistant/esp-rack-monitor-package.yaml` as a Home Assistant package and restart Home Assistant. This enables reliable stale-feed detection.
-5. Validate and flash `configs/esp-rack-monitor.yaml` from ESPHome.
+1. Copy or clone the repository contents directly into the ESPHome configuration directory, normally `/config/esphome`.
+2. Keep `esp-rack-monitor.yaml`, `packages/`, `includes/` and `secrets.yaml` on the same directory level.
+3. Add the values listed in `secrets.example.yaml` to the normal ESPHome `secrets.yaml` file.
+4. Edit the substitutions in `esp-rack-monitor.yaml`, especially entity IDs and thresholds.
+5. Optionally install `home-assistant/esp-rack-monitor-package.yaml` as a Home Assistant package and restart Home Assistant. This enables reliable stale-feed detection.
+6. Validate and flash `esp-rack-monitor.yaml` from ESPHome.
+
+Expected Home Assistant layout:
+
+```text
+/config/esphome/
+├── esp-rack-monitor.yaml
+├── secrets.yaml
+├── packages/
+│   ├── base.yaml
+│   ├── connectivity.yaml
+│   ├── controls.yaml
+│   ├── display.yaml
+│   └── entities.yaml
+└── includes/
+    └── display_helpers.h
+```
 
 The web server is deliberately restricted to a local asset bundle, has HTTP authentication enabled and has web-based OTA disabled. Do not expose it to the internet.
+
+## Migrating from the former `configs/` layout
+
+Move `configs/esp-rack-monitor.yaml` to `/config/esphome/esp-rack-monitor.yaml`. Remove `../` from all five package include paths and use `packages/...`. In `packages/base.yaml`, use `includes/display_helpers.h` instead of `../includes/display_helpers.h`. The repository now already contains this corrected layout.
 
 ## Controls
 

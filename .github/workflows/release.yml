@@ -30,7 +30,7 @@ jobs:
       - name: Compile tagged source
         uses: esphome/build-action@v7
         with:
-          yaml-file: configs/esp-rack-monitor.yaml
+          yaml-file: esp-rack-monitor.yaml
           version: ${{ env.ESPHOME_VERSION }}
 
   release:
