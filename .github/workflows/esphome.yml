@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - "configs/**"
+      - "esp-rack-monitor.yaml"
       - "packages/**"
       - "includes/**"
       - "secrets.example.yaml"
@@ -40,7 +40,7 @@ jobs:
         id: esphome-build
         uses: esphome/build-action@v7
         with:
-          yaml-file: configs/esp-rack-monitor.yaml
+          yaml-file: esp-rack-monitor.yaml
           version: ${{ env.ESPHOME_VERSION }}
 
       - name: Upload firmware artifact
