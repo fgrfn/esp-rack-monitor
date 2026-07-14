@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented here.
 
+## 0.2.3 - 2026-07-14
+
+### Changed
+
+- Power and rack-temperature graphs now use explicit configurable Y-axis grid spacing.
+
+### Fixed
+
+- Prevented repeated `Graphing reducing y-scale to prevent too many gridlines` warnings during display updates.
+
 ## 0.2.2 - 2026-07-14
 
 ### Changed
