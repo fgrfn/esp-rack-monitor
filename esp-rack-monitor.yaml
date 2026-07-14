@@ -7,7 +7,7 @@
 substitutions:
   device_name: esp-rack-monitor
   friendly_name: ESP Rack Monitor
-  project_version: "0.2.2"
+  project_version: "0.2.3"
 
   # Remote implementation version. Use a release tag for a fixed version.
   rack_monitor_library_ref: main
@@ -72,6 +72,7 @@ substitutions:
   power_total_warn: "140"
   power_total_critical: "200"
   power_total_max: "250"
+  power_graph_y_grid: "25"
 
   # Per-device power thresholds and scales
   power_unraid_low: "70"
@@ -96,6 +97,7 @@ substitutions:
   temp_rack_critical: "40"
   temp_rack_graph_min: "15"
   temp_rack_graph_max: "45"
+  temp_graph_y_grid: "5"
   temp_cpu_warn: "70"
   temp_cpu_critical: "85"
   temp_nas_warn: "55"
@@ -120,3 +122,10 @@ packages:
       - packages/display.yaml
     ref: ${rack_monitor_library_ref}
     refresh: 1d
+
+# Explicit Y-axis spacing avoids ESPHome repeatedly auto-reducing the graph scale.
+graph:
+  - id: !extend power_history
+    y_grid: ${power_graph_y_grid}
+  - id: !extend rack_temp_history
+    y_grid: ${temp_graph_y_grid}
