@@ -1,7 +1,12 @@
-# Optional Home Assistant package.
-# Include with: homeassistant: packages: !include_dir_named packages
+# Optional Home Assistant package for ESP Rack Monitor 0.3.x.
+# Include with:
+#
+# homeassistant:
+#   packages: !include_dir_named packages
+#
+# The default entity IDs match the one-file installer. Adjust them here if Home Assistant
+# generated different entity IDs for your device.
 
-# The heartbeat changes every minute. ESPHome uses it to detect a stale HA data feed.
 template:
   - triggers:
       - trigger: time_pattern
@@ -13,3 +18,94 @@ template:
         icon: mdi:heart-pulse
         unit_of_measurement: s
         state: "{{ as_timestamp(now()) | int }}"
+
+  - triggers:
+      - trigger: state
+        entity_id:
+          - sensor.homelab_rack_power
+          - sensor.steingasse_63_aktueller_strompreis
+      - trigger: time_pattern
+        minutes: "/5"
+    sensor:
+      - name: "ESP Rack Monitor Cost Rate"
+        default_entity_id: sensor.esp_rack_monitor_cost_rate
+        unique_id: esp_rack_monitor_cost_rate
+        icon: mdi:cash-clock
+        unit_of_measurement: "€/h"
+        state_class: measurement
+        availability: >
+          {{ is_number(states('sensor.homelab_rack_power'))
+             and is_number(states('sensor.steingasse_63_aktueller_strompreis')) }}
+        state: >
+          {{ ((states('sensor.homelab_rack_power') | float(0)) / 1000
+              * (states('sensor.steingasse_63_aktueller_strompreis') | float(0))) | round(5) }}
+
+sensor:
+  - platform: integration
+    source: sensor.esp_rack_monitor_cost_rate
+    name: "ESP Rack Monitor Cost Total"
+    unique_id: esp_rack_monitor_cost_total
+    unit_time: h
+    method: left
+    round: 4
+    max_sub_interval:
+      minutes: 5
+
+utility_meter:
+  esp_rack_monitor_cost_today:
+    source: sensor.esp_rack_monitor_cost_total
+    name: "ESP Rack Monitor Cost Today"
+    unique_id: esp_rack_monitor_cost_today
+    cycle: daily
+    always_available: true
+
+script:
+  esp_rack_monitor_acknowledge_alarm:
+    alias: "ESP Rack Monitor: Alarm quittieren"
+    icon: mdi:check-decagram-outline
+    sequence:
+      - action: button.press
+        target:
+          entity_id: button.esp_rack_monitor_alarm_quittieren
+
+  esp_rack_monitor_test_alarm:
+    alias: "ESP Rack Monitor: Alarm testen"
+    icon: mdi:alarm-light-outline
+    sequence:
+      - action: button.press
+        target:
+          entity_id: button.esp_rack_monitor_alarm_testen
+
+automation:
+  - id: esp_rack_monitor_critical_alarm_notification
+    alias: "ESP Rack Monitor: Kritischer Alarm"
+    mode: restart
+    triggers:
+      - trigger: state
+        entity_id: binary_sensor.esp_rack_monitor_kritischer_alarm
+        to: "on"
+      - trigger: state
+        entity_id: text_sensor.esp_rack_monitor_alarmgrunde
+    conditions:
+      - condition: state
+        entity_id: binary_sensor.esp_rack_monitor_kritischer_alarm
+        state: "on"
+    actions:
+      - action: persistent_notification.create
+        data:
+          notification_id: esp_rack_monitor_alarm
+          title: "ESP Rack Monitor: Kritischer Alarm"
+          message: >
+            {{ states('text_sensor.esp_rack_monitor_alarmgrunde') }}
+
+  - id: esp_rack_monitor_alarm_cleared
+    alias: "ESP Rack Monitor: Alarm aufgehoben"
+    mode: single
+    triggers:
+      - trigger: state
+        entity_id: binary_sensor.esp_rack_monitor_kritischer_alarm
+        to: "off"
+    actions:
+      - action: persistent_notification.dismiss
+        data:
+          notification_id: esp_rack_monitor_alarm
