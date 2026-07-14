@@ -2,6 +2,21 @@
 
 All notable changes to this project are documented here.
 
+## 0.3.3 - 2026-07-15
+
+### Changed
+
+- Total rack power and rack temperature are republished every 30 seconds for continuous one-hour trend graphs.
+- Native API updates use a 250 ms batch delay to reduce Wi-Fi packet bursts during startup and bulk state changes.
+- Web UI uses the lighter version 2 frontend and no longer streams logs.
+- ESP32-S3 interrupt watchdog headroom is increased from the PSRAM default of 800 ms to 1200 ms.
+
+### Fixed
+
+- Rack temperature trends no longer remain empty when the Home Assistant sensor value stays unchanged.
+- Avoided the `${graph_sample_interval}` time-substitution validation failure by using a fixed `30s` heartbeat value.
+- Reduced the chance of transient CPU0 interrupt-watchdog resets while Wi-Fi and display activity overlap.
+
 ## 0.3.2 - 2026-07-14
 
 ### Fixed
