@@ -42,16 +42,31 @@ jobs:
         run: bash .github/scripts/prepare-remote-ref.sh "${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
 
       - name: Compile firmware
-        id: esphome-build
-        uses: esphome/build-action@v7
-        with:
-          yaml-file: esp-rack-monitor.yaml
-          version: ${{ env.ESPHOME_VERSION }}
+        shell: bash
+        run: |
+          set -o pipefail
+          docker run --rm \
+            -v "${PWD}:/config" \
+            -w /config \
+            "ghcr.io/esphome/esphome:${ESPHOME_VERSION}" \
+            compile esp-rack-monitor.yaml 2>&1 | tee esphome-build.log
 
-      - name: Upload firmware artifact
+      - name: Upload build log
+        if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ steps.esphome-build.outputs.name }}
-          path: ${{ steps.esphome-build.outputs.name }}
+          name: esp-rack-monitor-build-log
+          path: esphome-build.log
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload firmware artifact
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: esp-rack-monitor-firmware
+          path: |
+            .esphome/build/**/firmware*.bin
+            .esphome/build/**/manifest.json
           if-no-files-found: error
           retention-days: 7
