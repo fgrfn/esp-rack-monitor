@@ -208,7 +208,7 @@ binary_sensor:
                 - lambda: id(current_page) = (id(current_page) + 1) % 7;
                 - script.execute: show_current_page
       - min_length: 800ms
-        max_length: 3s
+        max_length: 10s
         then:
           - script.execute: wake_display
           - if:
@@ -230,12 +230,15 @@ binary_sensor:
       - delayed_off: 30ms
     on_click:
       - min_length: 50ms
-        max_length: 600ms
+        max_length: 700ms
         then:
           - script.execute: wake_display
           - switch.toggle: auto_rotate_switch
           - component.update: main_display
-      - min_length: 800ms
-        max_length: 3s
+    on_multi_click:
+      - timing:
+          - ON for at least 800ms
         then:
+          - logger.log: "B2 long press: acknowledge alarm"
+          - script.execute: wake_display
           - button.press: acknowledge_alarm_button
