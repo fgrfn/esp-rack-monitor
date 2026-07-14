@@ -7,9 +7,9 @@
 substitutions:
   device_name: esp-rack-monitor
   friendly_name: ESP Rack Monitor
-  project_version: "0.2.3"
+  project_version: "0.3.0"
 
-  # Remote implementation version. Use a release tag for a fixed version.
+  # Update channel. Keep "main" for the newest code or use a release tag such as v0.3.0.
   rack_monitor_library_ref: main
 
   # Local secrets. Remote package files never read secrets directly.
@@ -21,31 +21,44 @@ substitutions:
   web_server_username_value: !secret web_server_username
   web_server_password_value: !secret web_server_password
 
-  # Display behavior
-  rotation_interval: 12s
-  display_update_interval: 2s
+  # Host labels. Existing entity substitutions below remain backward compatible.
+  host_1_name: "UNRAID"
+  host_2_name: "PROXMOX"
+  host_3_name: "NAS"
+  host_4_name: "JETKVM+MODEM"
+
+  # Runtime defaults. Most of these become persistent Home Assistant controls.
+  display_update_interval: 5s
   sensor_stale_timeout: 30min
   heartbeat_timeout: 3min
-  day_brightness: "100"
-  night_brightness: "12"
-  night_start_hour: "23"
-  night_end_hour: "7"
   wake_duration: 45s
+  rotation_interval_seconds: "12"
+  manual_rotation_pause_seconds: "60"
+  day_brightness_default: "100"
+  night_brightness_default: "12"
+  night_start_hour_default: "23"
+  night_end_hour_default: "7"
+  boot_grace_seconds: "60"
+  alarm_trigger_delay_seconds: "20"
+  alarm_clear_delay_seconds: "60"
+  temp_hysteresis_default: "2"
+  power_hysteresis_default: "15"
+  utilization_hysteresis_default: "5"
 
-  # Home Assistant entities: power
+  # Home Assistant entities: total and per-host power
   entity_power_total: sensor.homelab_rack_power
   entity_power_unraid: sensor.unraid_tower_power
   entity_power_proxmox: sensor.proxmox_power
   entity_power_nas: sensor.ugreen_dh2300_nas_power
   entity_power_jetkvm_modem: sensor.jetkvm_modem_power
 
-  # Home Assistant entities: temperature
+  # Home Assistant entities: rack and host temperatures
   entity_temp_rack: sensor.rack_temperatursensor_temperature
   entity_temp_unraid: sensor.unraid_cpu_temp
   entity_temp_proxmox: sensor.proxmox_cpu_temp
   entity_temp_nas: sensor.nas_temperature
 
-  # Home Assistant entities: compute
+  # Home Assistant entities: CPU, RAM and disk
   entity_cpu_unraid: sensor.unraid_cpu_usage
   entity_ram_unraid: sensor.unraid_ram_usage
   entity_disk_unraid: sensor.unraid_disk_usage
@@ -60,7 +73,9 @@ substitutions:
   entity_electricity_price: sensor.steingasse_63_aktueller_strompreis
   electricity_price_divisor: "1.0"   # 1.0 for EUR/kWh, 100.0 for ct/kWh
   entity_rack_energy_today: sensor.homelab_rack_energy_today
+  entity_rack_cost_today: sensor.esp_rack_monitor_cost_today
   entity_heartbeat: sensor.esp_rack_monitor_heartbeat
+  entity_sun: sun.sun
 
   # Optional host availability binary sensors
   entity_unraid_online: binary_sensor.unraid_online
@@ -92,7 +107,7 @@ substitutions:
   power_jetkvm_critical: "18"
   power_jetkvm_max: "25"
 
-  # Temperature thresholds. 35 °C rack air is a warning, not yet critical.
+  # Temperature thresholds
   temp_rack_warn: "35"
   temp_rack_critical: "40"
   temp_rack_graph_min: "15"
@@ -122,10 +137,3 @@ packages:
       - packages/display.yaml
     ref: ${rack_monitor_library_ref}
     refresh: 1d
-
-# Explicit Y-axis spacing avoids ESPHome repeatedly auto-reducing the graph scale.
-graph:
-  - id: !extend power_history
-    y_grid: ${power_graph_y_grid}
-  - id: !extend rack_temp_history
-    y_grid: ${temp_graph_y_grid}
