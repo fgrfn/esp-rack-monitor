@@ -25,6 +25,11 @@ esp32:
   flash_size: 16MB
   framework:
     type: esp-idf
+    sdkconfig_options:
+      # The ESP32-S3 uses an 800 ms interrupt watchdog when PSRAM is enabled.
+      # Allow a little more headroom for simultaneous Wi-Fi and octal-display work,
+      # while still resetting the device promptly if a core genuinely locks up.
+      CONFIG_ESP_INT_WDT_TIMEOUT_MS: "1200"
 
 psram:
   mode: octal
