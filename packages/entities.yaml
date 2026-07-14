@@ -1,3 +1,10 @@
+substitutions:
+  host_1_name: "UNRAID"
+  host_2_name: "PROXMOX"
+  host_3_name: "NAS"
+  entity_rack_cost_today: sensor.esp_rack_monitor_cost_today
+  entity_sun: sun.sun
+
 time:
   - platform: homeassistant
     id: ha_time
@@ -132,7 +139,7 @@ sensor:
     filters:
       - timeout: ${sensor_stale_timeout}
 
-  # Electricity price and energy
+  # Electricity price, energy and actual daily cost
   - platform: homeassistant
     id: electricity_price
     entity_id: ${entity_electricity_price}
@@ -143,6 +150,13 @@ sensor:
     id: rack_energy_today
     entity_id: ${entity_rack_energy_today}
     unit_of_measurement: kWh
+    filters:
+      - timeout: 2h
+
+  - platform: homeassistant
+    id: rack_cost_today_actual
+    entity_id: ${entity_rack_cost_today}
+    unit_of_measurement: "€"
     filters:
       - timeout: 2h
 
@@ -211,6 +225,35 @@ sensor:
       if (!rack_monitor::valid(id(rack_cost_hour).state)) return NAN;
       return id(rack_cost_hour).state * 24.0f * 30.0f;
 
+  - platform: template
+    id: alarm_count
+    name: "${friendly_name} Aktive Alarme"
+    icon: mdi:alarm-light
+    accuracy_decimals: 0
+    update_interval: 2s
+    lambda: return rack_monitor::count_bits(id(active_alarm_mask));
+
+  - platform: template
+    id: warning_count
+    name: "${friendly_name} Aktive Warnungen"
+    icon: mdi:alert-outline
+    accuracy_decimals: 0
+    update_interval: 2s
+    lambda: return rack_monitor::count_bits(id(warning_mask));
+
+  - platform: template
+    id: data_age_seconds
+    name: "${friendly_name} Datenalter"
+    unit_of_measurement: s
+    icon: mdi:timer-sand
+    accuracy_decimals: 0
+    update_interval: 10s
+    lambda: |-
+      if (!rack_monitor::valid(id(data_heartbeat).state)) return NAN;
+      const auto now = id(ha_time).now();
+      if (!now.is_valid()) return NAN;
+      return std::max(0.0f, static_cast<float>(now.timestamp) - id(data_heartbeat).state);
+
 binary_sensor:
   - platform: status
     id: api_status
@@ -232,26 +275,35 @@ binary_sensor:
     id: alarm_active
     name: "${friendly_name} Kritischer Alarm"
     device_class: problem
-    lambda: |-
-      const auto bad = [](float value, float limit) {
-        return rack_monitor::valid(value) && value >= limit;
-      };
-      if (!id(api_status).state) return true;
-      if (id(heartbeat_seen) && !rack_monitor::valid(id(data_heartbeat).state)) return true;
-      if (id(unraid_online).has_state() && !id(unraid_online).state) return true;
-      if (id(proxmox_online).has_state() && !id(proxmox_online).state) return true;
-      if (id(nas_online).has_state() && !id(nas_online).state) return true;
-      if (bad(id(power_total).state, ${power_total_critical})) return true;
-      if (bad(id(temp_rack).state, ${temp_rack_critical})) return true;
-      if (bad(id(temp_unraid).state, ${temp_cpu_critical})) return true;
-      if (bad(id(temp_proxmox).state, ${temp_cpu_critical})) return true;
-      if (bad(id(temp_nas).state, ${temp_nas_critical})) return true;
-      if (bad(id(cpu_unraid).state, ${cpu_critical}) || bad(id(cpu_proxmox).state, ${cpu_critical}) || bad(id(cpu_nas).state, ${cpu_critical})) return true;
-      if (bad(id(ram_unraid).state, ${ram_critical}) || bad(id(ram_proxmox).state, ${ram_critical}) || bad(id(ram_nas).state, ${ram_critical})) return true;
-      if (bad(id(disk_unraid).state, ${disk_critical}) || bad(id(disk_proxmox).state, ${disk_critical}) || bad(id(disk_nas).state, ${disk_critical})) return true;
-      return false;
+    lambda: return id(active_alarm_mask) != 0;
+
+  - platform: template
+    id: warning_active
+    name: "${friendly_name} Warnung"
+    device_class: problem
+    lambda: return id(warning_mask) != 0;
+
+  - platform: template
+    id: alarm_unacknowledged
+    name: "${friendly_name} Alarm nicht quittiert"
+    device_class: problem
+    lambda: return (id(active_alarm_mask) & ~id(acknowledged_alarm_mask)) != 0;
+
+  - platform: template
+    id: configuration_mismatch
+    name: "${friendly_name} Versionskonflikt"
+    device_class: problem
+    lambda: return (id(warning_mask) & rack_monitor::WARNING_CONFIG_MISMATCH) != 0;
+    entity_category: diagnostic
 
 text_sensor:
+  - platform: homeassistant
+    id: sun_state
+    entity_id: ${entity_sun}
+    on_value:
+      then:
+        - script.execute: apply_backlight
+
   - platform: wifi_info
     ip_address:
       id: device_ip
@@ -272,25 +324,40 @@ text_sensor:
 
   - platform: template
     id: alarm_reason
-    name: "${friendly_name} Alarmgrund"
+    name: "${friendly_name} Alarmgründe"
+    icon: mdi:alarm-light
     update_interval: 2s
     lambda: |-
-      const auto bad = [](float value, float limit) {
-        return rack_monitor::valid(value) && value >= limit;
-      };
-      if (!id(api_status).state) return {"Home Assistant offline"};
-      if (id(heartbeat_seen) && !rack_monitor::valid(id(data_heartbeat).state)) return {"Datenfeed veraltet"};
-      if (id(unraid_online).has_state() && !id(unraid_online).state) return {"Unraid offline"};
-      if (id(proxmox_online).has_state() && !id(proxmox_online).state) return {"Proxmox offline"};
-      if (id(nas_online).has_state() && !id(nas_online).state) return {"NAS offline"};
-      if (bad(id(temp_rack).state, ${temp_rack_critical})) return {"Rack-Temperatur kritisch"};
-      if (bad(id(temp_unraid).state, ${temp_cpu_critical})) return {"Unraid-Temperatur kritisch"};
-      if (bad(id(temp_proxmox).state, ${temp_cpu_critical})) return {"Proxmox-Temperatur kritisch"};
-      if (bad(id(temp_nas).state, ${temp_nas_critical})) return {"NAS-Temperatur kritisch"};
-      if (bad(id(power_total).state, ${power_total_critical})) return {"Rack-Verbrauch kritisch"};
-      if (bad(id(cpu_unraid).state, ${cpu_critical})) return {"Unraid CPU kritisch"};
-      if (bad(id(cpu_proxmox).state, ${cpu_critical})) return {"Proxmox CPU kritisch"};
-      if (bad(id(cpu_nas).state, ${cpu_critical})) return {"NAS CPU kritisch"};
-      if (bad(id(ram_unraid).state, ${ram_critical}) || bad(id(ram_proxmox).state, ${ram_critical}) || bad(id(ram_nas).state, ${ram_critical})) return {"RAM-Auslastung kritisch"};
-      if (bad(id(disk_unraid).state, ${disk_critical}) || bad(id(disk_proxmox).state, ${disk_critical}) || bad(id(disk_nas).state, ${disk_critical})) return {"Speicherplatz kritisch"};
-      return {"Kein kritischer Alarm"};
+      return {rack_monitor::mask_reasons(id(active_alarm_mask), "${host_1_name}", "${host_2_name}", "${host_3_name}")};
+
+  - platform: template
+    id: alarm_primary_reason
+    name: "${friendly_name} Hauptalarm"
+    icon: mdi:alert-decagram
+    update_interval: 2s
+    lambda: |-
+      return {rack_monitor::primary_reason(id(active_alarm_mask), "${host_1_name}", "${host_2_name}", "${host_3_name}")};
+
+  - platform: template
+    id: warning_reason
+    name: "${friendly_name} Warnungsgründe"
+    icon: mdi:alert-outline
+    update_interval: 2s
+    lambda: |-
+      return {rack_monitor::mask_reasons(id(warning_mask), "${host_1_name}", "${host_2_name}", "${host_3_name}")};
+
+  - platform: template
+    id: configuration_ref
+    name: "${friendly_name} Update-Ref"
+    icon: mdi:source-branch
+    update_interval: never
+    lambda: return {"${rack_monitor_library_ref}"};
+    entity_category: diagnostic
+
+  - platform: template
+    id: project_version_text
+    name: "${friendly_name} Projektversion"
+    icon: mdi:tag-outline
+    update_interval: never
+    lambda: return {"${project_version}"};
+    entity_category: diagnostic
