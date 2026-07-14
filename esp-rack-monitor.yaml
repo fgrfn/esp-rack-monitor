@@ -7,9 +7,9 @@
 substitutions:
   device_name: esp-rack-monitor
   friendly_name: ESP Rack Monitor
-  project_version: "0.3.0"
+  project_version: "0.3.1"
 
-  # Update channel. Keep "main" for the newest code or use a release tag such as v0.3.0.
+  # Update channel. Keep "main" for the newest code or use a release tag such as v0.3.1.
   rack_monitor_library_ref: main
 
   # Local secrets. Remote package files never read secrets directly.
@@ -44,6 +44,14 @@ substitutions:
   temp_hysteresis_default: "2"
   power_hysteresis_default: "15"
   utilization_hysteresis_default: "5"
+
+  # Legacy aliases keep validation working when ESPHome still has a cached 0.2.x package.
+  # They are ignored by the 0.3.x implementation and can remain in the copied installer.
+  rotation_interval: 12s
+  day_brightness: "100"
+  night_brightness: "12"
+  night_start_hour: "23"
+  night_end_hour: "7"
 
   # Home Assistant entities: total and per-host power
   entity_power_total: sensor.homelab_rack_power
@@ -136,4 +144,4 @@ packages:
       - packages/controls.yaml
       - packages/display.yaml
     ref: ${rack_monitor_library_ref}
-    refresh: 1d
+    refresh: 5min

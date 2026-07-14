@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented here.
 
+## 0.3.1 - 2026-07-14
+
+### Fixed
+
+- Restored legacy `rotation_interval`, brightness and night-hour substitutions so a newly copied 0.3.x installer also validates when ESPHome still has cached 0.2.x Remote/Git Package files.
+- Reduced the `main` Remote/Git Package refresh interval from one day to five minutes to avoid long-lived mixed installer/package states during active development.
+
 ## 0.3.0 - 2026-07-14
 
 ### Added
