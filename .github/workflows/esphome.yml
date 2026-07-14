@@ -55,11 +55,19 @@ jobs:
         if: success()
         shell: bash
         run: |
-          mkdir -p build-artifacts
-          find .esphome/build -type f \
-            \( -name 'firmware.bin' -o -name 'firmware.ota.bin' -o -name 'firmware.factory.bin' \) \
-            -exec cp -v '{}' build-artifacts/ \;
-          test -n "$(find build-artifacts -type f -name '*.bin' -print -quit)"
+          docker run --rm \
+            -v "${PWD}:/config" \
+            --entrypoint /bin/sh \
+            "ghcr.io/esphome/esphome:${ESPHOME_VERSION}" \
+            -c '
+              set -eu
+              mkdir -p /config/build-artifacts
+              find /config/.esphome/build -type f \
+                \( -name "firmware.bin" -o -name "firmware.ota.bin" -o -name "firmware.factory.bin" \) \
+                -exec cp -v "{}" /config/build-artifacts/ \;
+              test -n "$(find /config/build-artifacts -type f -name "*.bin" -print -quit)"
+              chmod -R a+rX /config/build-artifacts
+            '
 
       - name: Upload build log
         if: always()
