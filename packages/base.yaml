@@ -7,7 +7,7 @@ esphome:
     name: "fgrfn.esp_rack_monitor"
     version: ${project_version}
   includes:
-    - ../includes/display_helpers.h
+    - includes/display_helpers.h
   on_boot:
     - priority: -100
       then:
