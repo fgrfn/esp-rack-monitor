@@ -2,6 +2,8 @@
 
 ESPHome rack-monitoring firmware for a **LilyGO T-Display-S3**. It presents Home Assistant metrics on a compact 320 × 170 display and exposes display, alarm and threshold controls back to Home Assistant.
 
+> **Personal learning project:** Built with the help of OpenAI Codex and Claude Code as a way to experiment, learn and create something useful.
+
 ![Display page overview](docs/images/display-pages.svg)
 
 ## Features
