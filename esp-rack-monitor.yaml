@@ -14,7 +14,7 @@ substitutions:
 
   # PlatformIO caches Git libraries separately from ESPHome Remote Packages.
   # A versioned dependency name guarantees that both parts are refreshed together.
-  rack_monitor_helper_package: RackMonitorHelpers_0_3_2
+  rack_monitor_helper_package: RackMonitorHelpers_0_3_3
 
   # Local secrets. Remote package files never read secrets directly.
   wifi_ssid_value: !secret wifi_ssid
