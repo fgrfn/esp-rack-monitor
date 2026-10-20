@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented here.
 
+## Unreleased
+
+### Fixed
+
+- Aligned the helper library identity and manifest version with firmware version 0.3.3.
+
 ## 0.3.3 - 2026-07-15
 
 ### Changed
