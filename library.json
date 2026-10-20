@@ -1,6 +1,6 @@
 {
-  "name": "RackMonitorHelpers_0_3_2",
-  "version": "0.3.2",
+  "name": "RackMonitorHelpers_0_3_3",
+  "version": "0.3.3",
   "description": "Header-only display helpers for ESP Rack Monitor",
   "keywords": ["esphome", "display", "rack-monitor"],
   "repository": {
