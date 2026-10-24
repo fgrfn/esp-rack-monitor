@@ -26,6 +26,7 @@ enum AlarmBit : uint32_t {
   ALARM_DISK_ANY          = 1u << 14,
   ALARM_TEST              = 1u << 15,
   WARNING_CONFIG_MISMATCH = 1u << 16,
+  WARNING_INVALID_THRESHOLDS = 1u << 17,
 };
 
 inline bool valid(float value) { return std::isfinite(value); }
@@ -136,6 +137,7 @@ inline std::string mask_reasons(uint32_t mask, const char *host1, const char *ho
   if (mask & ALARM_DISK_ANY) append_reason(result, "Speicherplatz", count, max_items);
   if (mask & ALARM_TEST) append_reason(result, "Testalarm", count, max_items);
   if (mask & WARNING_CONFIG_MISMATCH) append_reason(result, "Version/Ref stimmt nicht", count, max_items);
+  if (mask & WARNING_INVALID_THRESHOLDS) append_reason(result, "Schwellenwerte widersprüchlich", count, max_items);
   const int total = count_bits(mask);
   if (total > count) {
     result += "; +" + std::to_string(total - count);

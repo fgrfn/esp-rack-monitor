@@ -818,15 +818,28 @@ interval:
           if (configured_ref != "main" && configured_ref != "beta" && configured_ref != expected_ref)
             raw_warning |= rack_monitor::WARNING_CONFIG_MISMATCH;
 
+          // Restored values can cross despite each number entity's individual bounds.
+          const auto thresholds_ordered = [](float warning, float critical) {
+            return rack_monitor::valid(warning) && rack_monitor::valid(critical) && warning < critical;
+          };
+          if (!thresholds_ordered(id(rack_temp_warn_setting).state, id(rack_temp_critical_setting).state) ||
+              !thresholds_ordered(id(rack_power_warn_setting).state, id(rack_power_critical_setting).state) ||
+              !thresholds_ordered(id(host_temp_warn_setting).state, id(host_temp_critical_setting).state) ||
+              !thresholds_ordered(id(nas_temp_warn_setting).state, id(nas_temp_critical_setting).state) ||
+              !thresholds_ordered(id(cpu_warn_setting).state, id(cpu_critical_setting).state) ||
+              !thresholds_ordered(id(ram_warn_setting).state, id(ram_critical_setting).state) ||
+              !thresholds_ordered(id(disk_warn_setting).state, id(disk_critical_setting).state))
+            raw_warning |= rack_monitor::WARNING_INVALID_THRESHOLDS;
+
           raw_warning |= raw_alarm;
 
-          static uint32_t pending_since[17] = {};
-          static uint32_t clearing_since[17] = {};
+          static uint32_t pending_since[18] = {};
+          static uint32_t clearing_since[18] = {};
           uint32_t active = active_before;
           const uint32_t trigger_ms = static_cast<uint32_t>(id(alarm_trigger_delay_setting).state * 1000.0f);
           const uint32_t clear_ms = static_cast<uint32_t>(id(alarm_clear_delay_setting).state * 1000.0f);
 
-          for (int i = 0; i < 17; ++i) {
+          for (int i = 0; i < 18; ++i) {
             const uint32_t bit = 1u << i;
             const bool raw = (raw_alarm & bit) != 0;
             const bool is_active = (active & bit) != 0;
