@@ -41,6 +41,11 @@ Set `electricity_price_divisor` to `1.0` for EUR/kWh or `100.0` for ct/kWh.
 
 It also exposes active alarm/warning counts, all reason strings, an unacknowledged-alarm binary sensor, data age, project version and configured update ref.
 
+Warning and critical thresholds must remain strictly ordered. If a restored or
+manually changed warning threshold reaches or exceeds its critical threshold,
+the warning reason reports `Schwellenwerte widersprüchlich` until the values are
+corrected.
+
 ## Freshness behavior
 
 Numeric Home Assistant inputs receive a timeout filter. After `sensor_stale_timeout`, the state becomes `NaN` and the UI shows `STALE` or hides the corresponding card. The optional heartbeat package provides whole-feed detection even when monitored metrics remain constant.
