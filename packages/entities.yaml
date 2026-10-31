@@ -300,6 +300,7 @@ binary_sensor:
     id: invalid_thresholds
     name: "${friendly_name} Schwellenwerte ungültig"
     device_class: problem
+    # Keep automations independent from the localized warning-reason text.
     lambda: return (id(warning_mask) & rack_monitor::WARNING_INVALID_THRESHOLDS) != 0;
     entity_category: diagnostic
 
