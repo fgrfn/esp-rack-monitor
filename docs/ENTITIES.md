@@ -39,12 +39,16 @@ Set `electricity_price_divisor` to `1.0` for EUR/kWh or `100.0` for ct/kWh.
 - last-page restoration, default page and empty-page skipping
 - alarm test and acknowledgement
 
-It also exposes active alarm/warning counts, all reason strings, an unacknowledged-alarm binary sensor, data age, project version and configured update ref.
+It also exposes active alarm/warning counts, all reason strings, an
+unacknowledged-alarm binary sensor, dedicated diagnostic binary sensors for
+version conflicts and invalid thresholds, data age, project version and the
+configured update ref.
 
 Warning and critical thresholds must remain strictly ordered. If a restored or
 manually changed warning threshold reaches or exceeds its critical threshold,
-the warning reason reports `Schwellenwerte widersprüchlich` until the values are
-corrected.
+the warning reason reports `Schwellenwerte widersprüchlich` and the
+`Schwellenwerte ungültig` diagnostic binary sensor turns on until the values
+are corrected.
 
 ## Freshness behavior
 
