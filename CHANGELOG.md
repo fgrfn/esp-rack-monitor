@@ -4,6 +4,11 @@ All notable changes to this project are documented here.
 
 ## Unreleased
 
+### Added
+
+- Added a dedicated diagnostic binary sensor for contradictory warning and
+  critical thresholds.
+
 ### Fixed
 
 - Aligned the helper library identity and manifest version with firmware version 0.3.3.
